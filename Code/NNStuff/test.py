@@ -1,321 +1,498 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import KFold, train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-from sklearn.metrics import accuracy_score, classification_report, mean_squared_error, r2_score
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
 import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import pearsonr, spearmanr
 import warnings
 warnings.filterwarnings('ignore')
 
-class NeuralNetworkPipeline:
-    def __init__(self, csv_file_path, target_column, task_type='classification', 
-                 input_size=50, random_state=42):
+class VoiceSexualityPerceptionPipeline:
+    def __init__(self, random_state=42):
         """
-        Initialize the Neural Network Pipeline
+        Initialize the Voice-Based Sexuality Perception Pipeline
+        
+        This pipeline handles two separate neural networks:
+        1. Acoustic features → Self-reported sexuality (1-10 scale)
+        2. Acoustic features → Perceived sexuality (1-10 scale)
         
         Args:
-            csv_file_path (str): Path to the CSV file
-            target_column (str): Name of the target column
-            task_type (str): 'classification' or 'regression'
-            input_size (int): Expected input size (will be adjusted based on actual data)
             random_state (int): Random state for reproducibility
         """
-        self.csv_file_path = csv_file_path
-        self.target_column = target_column
-        self.task_type = task_type
-        self.input_size = input_size
         self.random_state = random_state
-        self.scaler = StandardScaler()
-        self.label_encoder = LabelEncoder() if task_type == 'classification' else None
+        self.scaler_acoustic = StandardScaler()
+        self.scaler_sexuality = MinMaxScaler(feature_range=(0, 1))  # For 1-10 scale
         
-    def load_data(self):
-        """Load data from CSV file"""
-        print("Loading data from CSV...")
-        self.df = pd.read_csv(self.csv_file_path)
-        print(f"Data shape: {self.df.shape}")
-        print(f"Columns: {list(self.df.columns)}")
+    def load_acoustic_data(self, csv_file_path, sexuality_column='self_reported_sexuality', 
+                          speaker_id_column='speaker_id'):
+        """
+        Load acoustic features with self-reported sexuality data
         
-        # Handle missing values
-        if self.df.isnull().sum().sum() > 0:
-            print("Handling missing values...")
-            # For numeric columns, fill with mean
-            numeric_cols = self.df.select_dtypes(include=[np.number]).columns
-            self.df[numeric_cols] = self.df[numeric_cols].fillna(self.df[numeric_cols].mean())
-            
-            # For categorical columns, fill with mode
-            categorical_cols = self.df.select_dtypes(include=['object']).columns
-            for col in categorical_cols:
-                if col != self.target_column:
-                    self.df[col] = self.df[col].fillna(self.df[col].mode()[0])
+        Args:
+            csv_file_path (str): Path to CSV with acoustic features and self-reported sexuality
+            sexuality_column (str): Column name for self-reported sexuality (1-10 scale)
+            speaker_id_column (str): Column name for speaker identification
+        """
+        print("Loading acoustic features data...")
+        self.acoustic_df = pd.read_csv(csv_file_path)
+        self.sexuality_column = sexuality_column
+        self.speaker_id_column = speaker_id_column
         
-        return self.df
+        print(f"Acoustic data shape: {self.acoustic_df.shape}")
+        print(f"Sexuality range: {self.acoustic_df[sexuality_column].min()} to {self.acoustic_df[sexuality_column].max()}")
+        print(f"Number of unique speakers: {self.acoustic_df[speaker_id_column].nunique()}")
+        
+        # Handle missing values in acoustic features
+        acoustic_cols = [col for col in self.acoustic_df.columns 
+                        if col not in [sexuality_column, speaker_id_column]]
+        
+        print(f"Number of acoustic features: {len(acoustic_cols)}")
+        
+        if self.acoustic_df[acoustic_cols].isnull().sum().sum() > 0:
+            print("Handling missing values in acoustic features...")
+            self.acoustic_df[acoustic_cols] = self.acoustic_df[acoustic_cols].fillna(
+                self.acoustic_df[acoustic_cols].median()
+            )
+        
+        return self.acoustic_df
     
-    def preprocess_data(self):
-        """Preprocess the data for neural network training"""
-        print("Preprocessing data...")
+    def load_perception_data(self, csv_file_path, perceived_sexuality_column='perceived_sexuality',
+                           rater_id_column='rater_id', speaker_id_column='speaker_id'):
+        """
+        Load perception data (raters' judgments of speaker sexuality)
         
-        # Separate features and target
-        X = self.df.drop(columns=[self.target_column])
-        y = self.df[self.target_column]
+        Args:
+            csv_file_path (str): Path to CSV with perception data
+            perceived_sexuality_column (str): Column name for perceived sexuality ratings
+            rater_id_column (str): Column name for rater identification
+            speaker_id_column (str): Column name for speaker identification
+        """
+        print("Loading perception data...")
+        self.perception_df = pd.read_csv(csv_file_path)
+        self.perceived_sexuality_column = perceived_sexuality_column
+        self.rater_id_column = rater_id_column
         
-        # Handle categorical features (one-hot encoding)
-        categorical_cols = X.select_dtypes(include=['object']).columns
-        if len(categorical_cols) > 0:
-            print(f"One-hot encoding categorical columns: {list(categorical_cols)}")
-            X = pd.get_dummies(X, columns=categorical_cols, drop_first=True)
+        print(f"Perception data shape: {self.perception_df.shape}")
+        print(f"Number of unique raters: {self.perception_df[rater_id_column].nunique()}")
+        print(f"Number of unique speakers rated: {self.perception_df[speaker_id_column].nunique()}")
+        print(f"Perceived sexuality range: {self.perception_df[perceived_sexuality_column].min()} to {self.perception_df[perceived_sexuality_column].max()}")
         
-        # Update input size based on actual feature count
-        self.actual_input_size = X.shape[1]
-        print(f"Actual input size: {self.actual_input_size} (originally set to {self.input_size})")
+        # Calculate average perceived sexuality per speaker
+        print("Calculating average perceived sexuality per speaker...")
+        self.avg_perception_df = self.perception_df.groupby(speaker_id_column).agg({
+            perceived_sexuality_column: ['mean', 'std', 'count']
+        }).round(3)
         
-        # Encode target variable if classification
-        if self.task_type == 'classification':
-            y = self.label_encoder.fit_transform(y)
-            self.num_classes = len(np.unique(y))
-            print(f"Number of classes: {self.num_classes}")
+        self.avg_perception_df.columns = ['avg_perceived_sexuality', 'std_perceived_sexuality', 'num_raters']
+        self.avg_perception_df = self.avg_perception_df.reset_index()
+        
+        print(f"Average perceived sexuality range: {self.avg_perception_df['avg_perceived_sexuality'].min():.2f} to {self.avg_perception_df['avg_perceived_sexuality'].max():.2f}")
+        
+        return self.perception_df, self.avg_perception_df
+    
+    def merge_datasets(self):
+        """Merge acoustic features with averaged perception data"""
+        print("Merging acoustic and perception datasets...")
+        
+        self.merged_df = pd.merge(
+            self.acoustic_df, 
+            self.avg_perception_df, 
+            on=self.speaker_id_column, 
+            how='inner'
+        )
+        
+        print(f"Merged dataset shape: {self.merged_df.shape}")
+        print(f"Speakers with both acoustic and perception data: {len(self.merged_df)}")
+        
+        return self.merged_df
+    
+    def prepare_data_for_model(self, target_type='self_reported'):
+        """
+        Prepare data for neural network training
+        
+        Args:
+            target_type (str): 'self_reported' or 'perceived'
+        """
+        print(f"Preparing data for {target_type} sexuality prediction...")
+        
+        # Select acoustic features (exclude metadata and target columns)
+        exclude_cols = [self.speaker_id_column, self.sexuality_column, 
+                       'avg_perceived_sexuality', 'std_perceived_sexuality', 'num_raters']
+        
+        acoustic_features = [col for col in self.merged_df.columns if col not in exclude_cols]
+        
+        X = self.merged_df[acoustic_features].values
+        
+        if target_type == 'self_reported':
+            y = self.merged_df[self.sexuality_column].values
+        else:  # perceived
+            y = self.merged_df['avg_perceived_sexuality'].values
+        
+        print(f"Feature matrix shape: {X.shape}")
+        print(f"Target vector shape: {y.shape}")
+        print(f"Target range: {y.min():.2f} to {y.max():.2f}")
         
         # Scale features
-        X_scaled = self.scaler.fit_transform(X)
+        X_scaled = self.scaler_acoustic.fit_transform(X)
         
-        return X_scaled, y
+        # Normalize sexuality scores to 0-1 range for better training
+        y_scaled = (y - 1) / 9  # Convert 1-10 scale to 0-1 scale
+        
+        return X_scaled, y_scaled, y  # Return both scaled and original targets
     
-    def create_model(self):
-        """Create a neural network model"""
-        model = keras.Sequential([
-            layers.Dense(128, activation='relu', input_shape=(self.actual_input_size,)),
-            layers.Dropout(0.3),
-            layers.Dense(64, activation='relu'),
-            layers.Dropout(0.2),
-            layers.Dense(32, activation='relu'),
-            layers.Dropout(0.1),
-        ])
+    def create_sexuality_model(self, input_size, model_complexity='medium'):
+        """
+        Create neural network model for sexuality prediction
         
-        if self.task_type == 'classification':
-            if self.num_classes == 2:
-                # Binary classification
-                model.add(layers.Dense(1, activation='sigmoid'))
-                model.compile(
-                    optimizer='adam',
-                    loss='binary_crossentropy',
-                    metrics=['accuracy']
-                )
-            else:
-                # Multi-class classification
-                model.add(layers.Dense(self.num_classes, activation='softmax'))
-                model.compile(
-                    optimizer='adam',
-                    loss='sparse_categorical_crossentropy',
-                    metrics=['accuracy']
-                )
-        else:
-            # Regression
-            model.add(layers.Dense(1, activation='linear'))
-            model.compile(
-                optimizer='adam',
-                loss='mean_squared_error',
-                metrics=['mae']
-            )
+        Args:
+            input_size (int): Number of input features
+            model_complexity (str): 'simple', 'medium', or 'complex'
+        """
+        if model_complexity == 'simple':
+            model = keras.Sequential([
+                layers.Dense(64, activation='relu', input_shape=(input_size,)),
+                layers.Dropout(0.3),
+                layers.Dense(32, activation='relu'),
+                layers.Dropout(0.2),
+                layers.Dense(1, activation='sigmoid')  # Sigmoid for 0-1 range
+            ])
+        elif model_complexity == 'medium':
+            model = keras.Sequential([
+                layers.Dense(128, activation='relu', input_shape=(input_size,)),
+                layers.BatchNormalization(),
+                layers.Dropout(0.4),
+                layers.Dense(64, activation='relu'),
+                layers.BatchNormalization(),
+                layers.Dropout(0.3),
+                layers.Dense(32, activation='relu'),
+                layers.Dropout(0.2),
+                layers.Dense(16, activation='relu'),
+                layers.Dense(1, activation='sigmoid')
+            ])
+        else:  # complex
+            model = keras.Sequential([
+                layers.Dense(256, activation='relu', input_shape=(input_size,)),
+                layers.BatchNormalization(),
+                layers.Dropout(0.5),
+                layers.Dense(128, activation='relu'),
+                layers.BatchNormalization(),
+                layers.Dropout(0.4),
+                layers.Dense(64, activation='relu'),
+                layers.BatchNormalization(),
+                layers.Dropout(0.3),
+                layers.Dense(32, activation='relu'),
+                layers.Dropout(0.2),
+                layers.Dense(16, activation='relu'),
+                layers.Dense(1, activation='sigmoid')
+            ])
+        
+        # Use MAE as primary metric since it's more interpretable for 1-10 scale
+        model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate=0.001),
+            loss='mse',
+            metrics=['mae']
+        )
         
         return model
     
-    def perform_cross_validation(self, X, y, n_splits=5):
+    def perform_cross_validation(self, X, y, y_original, target_type, n_splits=5, 
+                               model_complexity='medium'):
         """Perform k-fold cross validation"""
-        print(f"Performing {n_splits}-fold cross validation...")
+        print(f"\nPerforming {n_splits}-fold cross validation for {target_type} sexuality...")
         
         kfold = KFold(n_splits=n_splits, shuffle=True, random_state=self.random_state)
-        cv_scores = []
+        cv_scores = {'mae': [], 'rmse': [], 'r2': [], 'corr': []}
         fold_histories = []
         
         for fold, (train_idx, val_idx) in enumerate(kfold.split(X)):
             print(f"\nTraining Fold {fold + 1}/{n_splits}")
             
-            # Split data for this fold
             X_train_fold, X_val_fold = X[train_idx], X[val_idx]
             y_train_fold, y_val_fold = y[train_idx], y[val_idx]
+            y_val_original = y_original[val_idx]
             
             # Create and train model
-            model = self.create_model()
+            model = self.create_sexuality_model(X.shape[1], model_complexity)
             
-            # Early stopping callback
+            # Callbacks
             early_stopping = keras.callbacks.EarlyStopping(
-                monitor='val_loss',
-                patience=10,
-                restore_best_weights=True
+                monitor='val_loss', patience=20, restore_best_weights=True
+            )
+            reduce_lr = keras.callbacks.ReduceLROnPlateau(
+                monitor='val_loss', factor=0.5, patience=10, min_lr=1e-6
             )
             
             # Train model
             history = model.fit(
                 X_train_fold, y_train_fold,
                 validation_data=(X_val_fold, y_val_fold),
-                epochs=100,
-                batch_size=32,
+                epochs=200,
+                batch_size=min(32, len(X_train_fold) // 4),  # Adaptive batch size
                 verbose=0,
-                callbacks=[early_stopping]
+                callbacks=[early_stopping, reduce_lr]
             )
             
             # Evaluate fold
-            if self.task_type == 'classification':
-                y_pred = model.predict(X_val_fold)
-                if self.num_classes == 2:
-                    y_pred_binary = (y_pred > 0.5).astype(int).flatten()
-                    score = accuracy_score(y_val_fold, y_pred_binary)
-                else:
-                    y_pred_classes = np.argmax(y_pred, axis=1)
-                    score = accuracy_score(y_val_fold, y_pred_classes)
-                print(f"Fold {fold + 1} Accuracy: {score:.4f}")
-            else:
-                y_pred = model.predict(X_val_fold)
-                score = r2_score(y_val_fold, y_pred)
-                print(f"Fold {fold + 1} R² Score: {score:.4f}")
+            y_pred_scaled = model.predict(X_val_fold, verbose=0)
+            y_pred_original = y_pred_scaled.flatten() * 9 + 1  # Convert back to 1-10 scale
             
-            cv_scores.append(score)
+            # Calculate metrics
+            mae = mean_absolute_error(y_val_original, y_pred_original)
+            rmse = np.sqrt(mean_squared_error(y_val_original, y_pred_original))
+            r2 = r2_score(y_val_original, y_pred_original)
+            corr, _ = pearsonr(y_val_original, y_pred_original)
+            
+            cv_scores['mae'].append(mae)
+            cv_scores['rmse'].append(rmse)
+            cv_scores['r2'].append(r2)
+            cv_scores['corr'].append(corr)
             fold_histories.append(history.history)
+            
+            print(f"Fold {fold + 1} - MAE: {mae:.3f}, RMSE: {rmse:.3f}, R²: {r2:.3f}, Corr: {corr:.3f}")
         
-        print(f"\nCross-validation results:")
-        print(f"Mean Score: {np.mean(cv_scores):.4f} (+/- {np.std(cv_scores) * 2:.4f})")
+        # Print summary
+        print(f"\n{target_type.upper()} Cross-validation Results:")
+        for metric, scores in cv_scores.items():
+            mean_score = np.mean(scores)
+            std_score = np.std(scores)
+            print(f"{metric.upper()}: {mean_score:.3f} (±{std_score:.3f})")
         
         return cv_scores, fold_histories
     
-    def train_final_model(self, X, y, test_size=0.2):
+    def train_final_model(self, X, y, y_original, target_type, test_size=0.2, 
+                         model_complexity='medium'):
         """Train final model on train-test split"""
-        print(f"\nTraining final model with {int((1-test_size)*100)}-{int(test_size*100)} train-test split...")
+        print(f"\nTraining final {target_type} model with 80-20 split...")
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=self.random_state, 
-            stratify=y if self.task_type == 'classification' else None
+        X_train, X_test, y_train, y_test, y_test_orig = train_test_split(
+            X, y, y_original, test_size=test_size, random_state=self.random_state
         )
         
         print(f"Training set size: {X_train.shape[0]}")
         print(f"Test set size: {X_test.shape[0]}")
         
         # Create and train final model
-        self.final_model = self.create_model()
+        final_model = self.create_sexuality_model(X.shape[1], model_complexity)
         
         # Callbacks
         early_stopping = keras.callbacks.EarlyStopping(
-            monitor='val_loss',
-            patience=15,
-            restore_best_weights=True
+            monitor='val_loss', patience=25, restore_best_weights=True
         )
-        
         reduce_lr = keras.callbacks.ReduceLROnPlateau(
-            monitor='val_loss',
-            factor=0.5,
-            patience=5,
-            min_lr=1e-7
+            monitor='val_loss', factor=0.5, patience=12, min_lr=1e-6
         )
         
         # Train model
-        history = self.final_model.fit(
+        history = final_model.fit(
             X_train, y_train,
             validation_data=(X_test, y_test),
-            epochs=150,
-            batch_size=32,
+            epochs=300,
+            batch_size=min(32, len(X_train) // 4),
             callbacks=[early_stopping, reduce_lr],
             verbose=1
         )
         
         # Final evaluation
-        print("\nFinal Model Evaluation:")
-        if self.task_type == 'classification':
-            y_pred = self.final_model.predict(X_test)
-            if self.num_classes == 2:
-                y_pred_binary = (y_pred > 0.5).astype(int).flatten()
-                accuracy = accuracy_score(y_test, y_pred_binary)
-                print(f"Test Accuracy: {accuracy:.4f}")
-                print("\nClassification Report:")
-                print(classification_report(y_test, y_pred_binary))
-            else:
-                y_pred_classes = np.argmax(y_pred, axis=1)
-                accuracy = accuracy_score(y_test, y_pred_classes)
-                print(f"Test Accuracy: {accuracy:.4f}")
-                print("\nClassification Report:")
-                print(classification_report(y_test, y_pred_classes))
-        else:
-            y_pred = self.final_model.predict(X_test)
-            mse = mean_squared_error(y_test, y_pred)
-            r2 = r2_score(y_test, y_pred)
-            print(f"Test MSE: {mse:.4f}")
-            print(f"Test R² Score: {r2:.4f}")
+        y_pred_scaled = final_model.predict(X_test, verbose=0)
+        y_pred_orig = y_pred_scaled.flatten() * 9 + 1
         
-        return history, X_test, y_test
+        mae = mean_absolute_error(y_test_orig, y_pred_orig)
+        rmse = np.sqrt(mean_squared_error(y_test_orig, y_pred_orig))
+        r2 = r2_score(y_test_orig, y_pred_orig)
+        corr, p_value = pearsonr(y_test_orig, y_pred_orig)
+        
+        print(f"\nFinal {target_type.upper()} Model Results:")
+        print(f"Test MAE: {mae:.3f}")
+        print(f"Test RMSE: {rmse:.3f}")
+        print(f"Test R²: {r2:.3f}")
+        print(f"Test Correlation: {corr:.3f} (p={p_value:.4f})")
+        
+        return final_model, history, (X_test, y_test_orig, y_pred_orig)
     
-    def plot_training_history(self, history):
-        """Plot training history"""
-        fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    def compare_models(self, self_reported_results, perceived_results):
+        """Compare self-reported vs perceived sexuality prediction models"""
+        print("\n" + "="*60)
+        print("MODEL COMPARISON: SELF-REPORTED vs PERCEIVED SEXUALITY")
+        print("="*60)
         
-        # Plot loss
-        axes[0].plot(history.history['loss'], label='Training Loss')
-        axes[0].plot(history.history['val_loss'], label='Validation Loss')
-        axes[0].set_title('Model Loss')
-        axes[0].set_xlabel('Epoch')
-        axes[0].set_ylabel('Loss')
-        axes[0].legend()
-        axes[0].grid(True)
+        # Extract test results
+        _, y_self_true, y_self_pred = self_reported_results[2]
+        _, y_perc_true, y_perc_pred = perceived_results[2]
         
-        # Plot metrics
-        if self.task_type == 'classification':
-            axes[1].plot(history.history['accuracy'], label='Training Accuracy')
-            axes[1].plot(history.history['val_accuracy'], label='Validation Accuracy')
-            axes[1].set_ylabel('Accuracy')
-        else:
-            axes[1].plot(history.history['mae'], label='Training MAE')
-            axes[1].plot(history.history['val_mae'], label='Validation MAE')
-            axes[1].set_ylabel('MAE')
+        # Calculate correlation between actual self-reported and perceived ratings
+        actual_corr, p_val = pearsonr(y_self_true, y_perc_true)
+        print(f"Correlation between actual self-reported and perceived: {actual_corr:.3f} (p={p_val:.4f})")
         
-        axes[1].set_title('Model Performance')
-        axes[1].set_xlabel('Epoch')
-        axes[1].legend()
-        axes[1].grid(True)
+        # Create comparison plot
+        fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+        
+        # Self-reported predictions
+        axes[0,0].scatter(y_self_true, y_self_pred, alpha=0.6, color='blue')
+        axes[0,0].plot([1, 10], [1, 10], 'r--', alpha=0.8)
+        axes[0,0].set_xlabel('Actual Self-Reported Sexuality')
+        axes[0,0].set_ylabel('Predicted Self-Reported Sexuality')
+        axes[0,0].set_title('Self-Reported Sexuality Prediction')
+        axes[0,0].grid(True, alpha=0.3)
+        
+        # Perceived predictions
+        axes[0,1].scatter(y_perc_true, y_perc_pred, alpha=0.6, color='green')
+        axes[0,1].plot([1, 10], [1, 10], 'r--', alpha=0.8)
+        axes[0,1].set_xlabel('Actual Perceived Sexuality')
+        axes[0,1].set_ylabel('Predicted Perceived Sexuality')
+        axes[0,1].set_title('Perceived Sexuality Prediction')
+        axes[0,1].grid(True, alpha=0.3)
+        
+        # Self-reported vs Perceived (actual)
+        axes[1,0].scatter(y_self_true, y_perc_true, alpha=0.6, color='purple')
+        axes[1,0].plot([1, 10], [1, 10], 'r--', alpha=0.8)
+        axes[1,0].set_xlabel('Self-Reported Sexuality')
+        axes[1,0].set_ylabel('Perceived Sexuality (Avg)')
+        axes[1,0].set_title(f'Self-Reported vs Perceived\n(r={actual_corr:.3f})')
+        axes[1,0].grid(True, alpha=0.3)
+        
+        # Prediction errors comparison
+        self_errors = np.abs(y_self_true - y_self_pred)
+        perc_errors = np.abs(y_perc_true - y_perc_pred)
+        
+        axes[1,1].hist(self_errors, bins=20, alpha=0.6, label='Self-Reported', color='blue')
+        axes[1,1].hist(perc_errors, bins=20, alpha=0.6, label='Perceived', color='green')
+        axes[1,1].set_xlabel('Absolute Prediction Error')
+        axes[1,1].set_ylabel('Frequency')
+        axes[1,1].set_title('Prediction Error Distribution')
+        axes[1,1].legend()
+        axes[1,1].grid(True, alpha=0.3)
         
         plt.tight_layout()
         plt.show()
+        
+        return actual_corr
     
-    def run_pipeline(self):
-        """Run the complete pipeline"""
+    def analyze_rater_agreement(self):
+        """Analyze agreement between raters"""
+        if not hasattr(self, 'perception_df'):
+            print("No perception data loaded for rater agreement analysis")
+            return
+        
+        print("\n" + "="*50)
+        print("RATER AGREEMENT ANALYSIS")
+        print("="*50)
+        
+        # Calculate inter-rater statistics
+        speaker_ratings = self.perception_df.groupby(self.speaker_id_column)[self.perceived_sexuality_column].agg(['mean', 'std', 'count'])
+        
+        print(f"Average standard deviation across speakers: {speaker_ratings['std'].mean():.3f}")
+        print(f"Speakers with high disagreement (std > 2): {(speaker_ratings['std'] > 2).sum()}")
+        print(f"Average number of raters per speaker: {speaker_ratings['count'].mean():.1f}")
+        
+        # Plot rater agreement
+        plt.figure(figsize=(12, 4))
+        
+        plt.subplot(1, 2, 1)
+        plt.hist(speaker_ratings['std'].dropna(), bins=20, edgecolor='black', alpha=0.7)
+        plt.xlabel('Standard Deviation of Ratings')
+        plt.ylabel('Number of Speakers')
+        plt.title('Inter-Rater Agreement Distribution')
+        plt.grid(True, alpha=0.3)
+        
+        plt.subplot(1, 2, 2)
+        plt.scatter(speaker_ratings['mean'], speaker_ratings['std'], alpha=0.6)
+        plt.xlabel('Mean Perceived Sexuality')
+        plt.ylabel('Standard Deviation')
+        plt.title('Mean Rating vs Agreement')
+        plt.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        plt.show()
+        
+        return speaker_ratings
+    
+    def run_complete_analysis(self, acoustic_csv, perception_csv, 
+                            acoustic_sexuality_col='self_reported_sexuality',
+                            perceived_sexuality_col='perceived_sexuality',
+                            speaker_id_col='speaker_id',
+                            rater_id_col='rater_id'):
+        """Run the complete analysis pipeline"""
+        print("="*70)
+        print("VOICE-BASED SEXUALITY PERCEPTION ANALYSIS")
+        print("="*70)
+        
         # Load data
-        self.load_data()
+        self.load_acoustic_data(acoustic_csv, acoustic_sexuality_col, speaker_id_col)
+        self.load_perception_data(perception_csv, perceived_sexuality_col, rater_id_col, speaker_id_col)
         
-        # Preprocess data
-        X, y = self.preprocess_data()
+        # Analyze rater agreement
+        self.analyze_rater_agreement()
         
-        # Perform cross-validation
-        cv_scores, fold_histories = self.perform_cross_validation(X, y)
+        # Merge datasets
+        self.merge_datasets()
         
-        # Train final model
-        history, X_test, y_test = self.train_final_model(X, y)
+        results = {}
         
-        # Plot results
-        self.plot_training_history(history)
+        # Model 1: Acoustic features → Self-reported sexuality
+        print("\n" + "="*50)
+        print("MODEL 1: PREDICTING SELF-REPORTED SEXUALITY")
+        print("="*50)
         
-        return {
-            'cv_scores': cv_scores,
-            'final_model': self.final_model,
-            'history': history,
-            'test_data': (X_test, y_test)
+        X_self, y_self_scaled, y_self_orig = self.prepare_data_for_model('self_reported')
+        cv_scores_self, _ = self.perform_cross_validation(X_self, y_self_scaled, y_self_orig, 'self_reported')
+        model_self, history_self, test_results_self = self.train_final_model(
+            X_self, y_self_scaled, y_self_orig, 'self_reported'
+        )
+        
+        results['self_reported'] = {
+            'cv_scores': cv_scores_self,
+            'model': model_self,
+            'history': history_self,
+            'test_results': test_results_self
         }
+        
+        # Model 2: Acoustic features → Perceived sexuality
+        print("\n" + "="*50)
+        print("MODEL 2: PREDICTING PERCEIVED SEXUALITY")
+        print("="*50)
+        
+        X_perc, y_perc_scaled, y_perc_orig = self.prepare_data_for_model('perceived')
+        cv_scores_perc, _ = self.perform_cross_validation(X_perc, y_perc_scaled, y_perc_orig, 'perceived')
+        model_perc, history_perc, test_results_perc = self.train_final_model(
+            X_perc, y_perc_scaled, y_perc_orig, 'perceived'
+        )
+        
+        results['perceived'] = {
+            'cv_scores': cv_scores_perc,
+            'model': model_perc,
+            'history': history_perc,
+            'test_results': test_results_perc
+        }
+        
+        # Compare models
+        actual_corr = self.compare_models(
+            (model_self, history_self, test_results_self),
+            (model_perc, history_perc, test_results_perc)
+        )
+        
+        results['comparison'] = {'self_vs_perceived_correlation': actual_corr}
+        
+        print(f"\nAnalysis complete! Key finding: Self-reported vs Perceived correlation = {actual_corr:.3f}")
+        
+        return results
 
 # Example usage:
 if __name__ == "__main__":
-    # Initialize the pipeline
-    # Replace 'your_data.csv' with your actual CSV file path
-    # Replace 'target_column_name' with your actual target column name
+    # Initialize pipeline
+    pipeline = VoiceSexualityPerceptionPipeline(random_state=42)
     
-    pipeline = NeuralNetworkPipeline(
-        csv_file_path='your_data.csv',  # Update this path
-        target_column='target',         # Update this column name
-        task_type='classification',     # or 'regression'
-        input_size=50,                  # This will be automatically adjusted
-        random_state=42
+    # Run complete analysis
+    # Update these paths with your actual data files
+    results = pipeline.run_complete_analysis(
+        acoustic_csv='acoustic_features.csv',      # CSV with acoustic features + self-reported sexuality
+        perception_csv='perception_ratings.csv',   # CSV with rater judgments
+        acoustic_sexuality_col='self_reported_sexuality',  # 1-10 scale
+        perceived_sexuality_col='perceived_sexuality',     # 1-10 scale  
+        speaker_id_col='speaker_id',
+        rater_id_col='rater_id'
     )
-    
-    # Run the complete pipeline
-    results = pipeline.run_pipeline()
-    
-    print("\nPipeline completed successfully!")
-    print(f"Cross-validation scores: {results['cv_scores']}")
-    print(f"Mean CV score: {np.mean(results['cv_scores']):.4f}")
