@@ -1,0 +1,210 @@
+File type = "ooTextFile"
+Object class = "TextGrid"
+
+xmin = 0 
+xmax = 49.20612244897959 
+tiers? <exists> 
+size = 1 
+item []: 
+    item [1]:
+        class = "IntervalTier" 
+        name = "WCL" 
+        xmin = 0 
+        xmax = 49.20612244897959 
+        intervals: size = 49 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.29941256735829364 
+            text = "" 
+        intervals [2]:
+            xmin = 0.29941256735829364 
+            xmax = 1.5325375927754046 
+            text = "so this morning I woke up" 
+        intervals [3]:
+            xmin = 1.5325375927754046 
+            xmax = 1.5574492094504977 
+            text = "" 
+        intervals [4]:
+            xmin = 1.5574492094504977 
+            xmax = 3.662480818495869 
+            text = "late and immediately stubbed my toe on the dresser" 
+        intervals [5]:
+            xmin = 3.662480818495869 
+            xmax = 3.8742295602341605 
+            text = "" 
+        intervals [6]:
+            xmin = 3.8742295602341605 
+            xmax = 4.833326802225247 
+            text = "great start right" 
+        intervals [7]:
+            xmin = 4.833326802225247 
+            xmax = 5.437267391866608 
+            text = "" 
+        intervals [8]:
+            xmin = 5.437267391866608 
+            xmax = 7.031610859072569 
+            text = "I grumbled something half conscious" 
+        intervals [9]:
+            xmin = 7.031610859072569 
+            xmax = 9.398214443206419 
+            text = "grabbed whatever shirt was cleanish and headed out" 
+        intervals [10]:
+            xmin = 9.398214443206419 
+            xmax = 10.123260414313735 
+            text = "" 
+        intervals [11]:
+            xmin = 10.123260414313735 
+            xmax = 11.294106398043112 
+            text = "the sky looked weird like" 
+        intervals [12]:
+            xmin = 11.294106398043112 
+            xmax = 14.158942315678827 
+            text = "that shade of blue gray that makes you question if it's about to rain or not" 
+        intervals [13]:
+            xmin = 14.158942315678827 
+            xmax = 14.688148055294905 
+            text = "" 
+        intervals [14]:
+            xmin = 14.688148055294905 
+            xmax = 16.357226372526146 
+            text = "I stopped by the corner store to grab a" 
+        intervals [15]:
+            xmin = 16.357226372526146 
+            xmax = 18.101039539782665 
+            text = "toasted bagel and orange juice" 
+        intervals [16]:
+            xmin = 18.101039539782665 
+            xmax = 18.37506732320869 
+            text = "" 
+        intervals [17]:
+            xmin = 18.37506732320869 
+            xmax = 19.24958299436657 
+            text = "but they were out of both" 
+        intervals [18]:
+            xmin = 19.24958299436657 
+            xmax = 19.82255017789371 
+            text = "" 
+        intervals [19]:
+            xmin = 19.82255017789371 
+            xmax = 20.74427999487216 
+            text = "the cashier joked" 
+        intervals [20]:
+            xmin = 20.74427999487216 
+            xmax = 20.831470653234984 
+            text = "" 
+        intervals [21]:
+            xmin = 20.831470653234984 
+            xmax = 21.840391128576254 
+            text = "it's monday energy" 
+        intervals [22]:
+            xmin = 21.840391128576254 
+            xmax = 21.989860828626814 
+            text = "" 
+        intervals [23]:
+            xmin = 21.989860828626814 
+            xmax = 24.132259862684823 
+            text = "and I half laughed because yeah true" 
+        intervals [24]:
+            xmin = 24.132259862684823 
+            xmax = 24.832573372578352 
+            text = "" 
+        intervals [25]:
+            xmin = 24.832573372578352 
+            xmax = 27.105054813067046 
+            text = "I took a seat near the window scrolled my phone" 
+        intervals [26]:
+            xmin = 27.105054813067046 
+            xmax = 27.2240885733873 
+            text = "" 
+        intervals [27]:
+            xmin = 27.2240885733873 
+            xmax = 28.320199707091398 
+            text = "and overheard someone say" 
+        intervals [28]:
+            xmin = 28.320199707091398 
+            xmax = 28.619139107192517 
+            text = "" 
+        intervals [29]:
+            xmin = 28.619139107192517 
+            xmax = 30.101380299360557 
+            text = "the giraffe exhibit opens at noon" 
+        intervals [30]:
+            xmin = 30.101380299360557 
+            xmax = 30.31312904109885 
+            text = "" 
+        intervals [31]:
+            xmin = 30.31312904109885 
+            xmax = 31.90747250830481 
+            text = "which felt oddly profound at the time" 
+        intervals [32]:
+            xmin = 31.90747250830481 
+            xmax = 32.51696350246469 
+            text = "" 
+        intervals [33]:
+            xmin = 32.51696350246469 
+            xmax = 35.45653427012569 
+            text = "after a few bites of somethign vaguely egg shaped I wandered to the park" 
+        intervals [34]:
+            xmin = 35.45653427012569 
+            xmax = 36.20388277037848 
+            text = "" 
+        intervals [35]:
+            xmin = 36.20388277037848 
+            xmax = 38.533118929499686 
+            text = "a kid zoomed by on a scooter yelling zoom zoom" 
+        intervals [36]:
+            xmin = 38.533118929499686 
+            xmax = 40.39302454008755 
+            text = "like it was a sound effect that summoned speed" 
+        intervals [37]:
+            xmin = 40.39302454008755 
+            xmax = 40.9161684902645 
+            text = "" 
+        intervals [38]:
+            xmin = 40.9161684902645 
+            xmax = 42.11192609066898 
+            text = "I sat under a tree" 
+        intervals [39]:
+            xmin = 42.11192609066898 
+            xmax = 42.33004307939671 
+            text = "" 
+        intervals [40]:
+            xmin = 42.33004307939671 
+            xmax = 44.52835290815301 
+            text = "listened to the breeze and watched a yellow balloon" 
+        intervals [41]:
+            xmin = 44.52835290815301 
+            xmax = 44.75892570521829 
+            text = "" 
+        intervals [42]:
+            xmin = 44.75892570521829 
+            xmax = 45.96713911396031 
+            text = "get tangled in a power line" 
+        intervals [43]:
+            xmin = 45.96713911396031 
+            xmax = 46.378180789099346 
+            text = "" 
+        intervals [44]:
+            xmin = 46.378180789099346 
+            xmax = 47.137985097689686 
+            text = "weird morning" 
+        intervals [45]:
+            xmin = 47.137985097689686 
+            xmax = 47.399557072778165 
+            text = "" 
+        intervals [46]:
+            xmin = 47.399557072778165 
+            xmax = 48.07217072300568 
+            text = "but honestly" 
+        intervals [47]:
+            xmin = 48.07217072300568 
+            xmax = 48.308831081419065 
+            text = "" 
+        intervals [48]:
+            xmin = 48.308831081419065 
+            xmax = 49.043723773334314 
+            text = "not the worst" 
+        intervals [49]:
+            xmin = 49.043723773334314 
+            xmax = 49.20612244897959 
+            text = "" 
