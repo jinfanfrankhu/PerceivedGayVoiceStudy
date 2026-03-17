@@ -1464,6 +1464,73 @@ def analysis_8b(data, log, dprime_series):
     log("")
 
 
+def analysis_9a(data, log):
+    """9A: Bar plot of mean-based error per speaker, sorted max to min."""
+    print("--- 9A: Mean-Based Error by Speaker ---")
+    abs_error     = data['abs_error'].sort_values(ascending=False)
+    actual_scores = data['actual_scores']
+    OUTPUT_DIR    = data['OUTPUT_DIR']
+
+    colors = plt.cm.RdYlGn(np.linspace(0.1, 0.9, len(abs_error)))
+    fig, ax = plt.subplots(figsize=(16, 7))
+    bars = ax.bar(range(len(abs_error)), abs_error.values, color=colors, edgecolor='k', linewidth=0.5)
+    ax.set_xticks(range(len(abs_error)))
+    ax.set_xticklabels(abs_error.index, rotation=45, ha='right', fontsize=9)
+    ax.set_ylabel('Mean-Based Error  |mean(ratings) - actual|')
+    ax.set_title('9A: Per-Speaker Error — Mean-Based  (high to low)')
+    ax.axhline(abs_error.mean(), color='steelblue', lw=1.5, ls='--',
+               label=f'Mean = {abs_error.mean():.3f}')
+    ax.legend()
+    ax.grid(True, axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, '9A_meanbased_error_by_speaker.png'))
+    plt.close()
+
+    log("## 9A. Per-Speaker Mean-Based Error (sorted)")
+    log(f"- Range: {abs_error.iloc[-1]:.3f} ({abs_error.index[-1]}) "
+        f"to {abs_error.iloc[0]:.3f} ({abs_error.index[0]})")
+    log(f"- Mean across speakers: {abs_error.mean():.3f}\n")
+
+
+def analysis_9b(data, log):
+    """9B: Bar plot of individual-level MAE per speaker, sorted max to min."""
+    print("--- 9B: Individual-Level MAE by Speaker ---")
+    ratings       = data['ratings']
+    actual_scores = data['actual_scores']
+    speaker_codes = data['speaker_codes']
+    OUTPUT_DIR    = data['OUTPUT_DIR']
+
+    indiv_mae = {}
+    for sp in speaker_codes:
+        actual = actual_scores[sp]
+        if pd.isna(actual):
+            continue
+        col = ratings[sp].dropna()
+        if len(col) > 0:
+            indiv_mae[sp] = (col - actual).abs().mean()
+    indiv_mae = pd.Series(indiv_mae).sort_values(ascending=False)
+
+    colors = plt.cm.RdYlGn(np.linspace(0.1, 0.9, len(indiv_mae)))
+    fig, ax = plt.subplots(figsize=(16, 7))
+    ax.bar(range(len(indiv_mae)), indiv_mae.values, color=colors, edgecolor='k', linewidth=0.5)
+    ax.set_xticks(range(len(indiv_mae)))
+    ax.set_xticklabels(indiv_mae.index, rotation=45, ha='right', fontsize=9)
+    ax.set_ylabel('Individual-Level MAE  mean(|rating_i - actual|)')
+    ax.set_title('9B: Per-Speaker Error — Individual-Level MAE  (high to low)')
+    ax.axhline(indiv_mae.mean(), color='steelblue', lw=1.5, ls='--',
+               label=f'Mean = {indiv_mae.mean():.3f}')
+    ax.legend()
+    ax.grid(True, axis='y', alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, '9B_indivmae_by_speaker.png'))
+    plt.close()
+
+    log("## 9B. Per-Speaker Individual-Level MAE (sorted)")
+    log(f"- Range: {indiv_mae.iloc[-1]:.3f} ({indiv_mae.index[-1]}) "
+        f"to {indiv_mae.iloc[0]:.3f} ({indiv_mae.index[0]})")
+    log(f"- Mean across speakers: {indiv_mae.mean():.3f}\n")
+
+
 def write_summary(data, summary_lines):
     actual_scores = data['actual_scores']
     avg_predicted = data['avg_predicted']
@@ -1650,7 +1717,8 @@ def main():
     # ── Edit RUN to run only specific analyses. Empty set = run all. ──
     # Valid keys: '1A','1B','1C','1D','1E','2A','2B','3A','3B','4A',
     #             '4B','5A','5B','5C1','5C2','5C3','5C4','5C5','5C6','5D',
-    #             '5E','5F','5G','6A','6B','6C','7A','7B','8A','8B'
+    #             '5E','5F','5G','6A','6B','6C','7A','7B','8A','8B',
+    #             '9A','9B'
     RUN = set()
 
     run_all = not RUN
@@ -1731,6 +1799,10 @@ def main():
             # Compute 8A stats without saving to get dprime_series
             dprime_series = analysis_8a(data, log)
         analysis_8b(data, log, dprime_series)
+
+    # ---- Section 9: Per-Speaker Error Rankings ----
+    if should_run('9A'): analysis_9a(data, log)
+    if should_run('9B'): analysis_9b(data, log)
 
     write_summary(data, summary_lines)
 
