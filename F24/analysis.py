@@ -1371,13 +1371,107 @@ def write_summary(data, summary_lines):
 
 # ============================================================
 # MAIN
+def analysis_5e(data, log, cl):
+    """5E: PC2–PC5 vs Mean Listener Rating (are higher PCs orthogonal to consensus?)"""
+    print("--- 5E: PC2-PC5 vs Mean Listener Rating ---")
+    OUTPUT_DIR     = data['OUTPUT_DIR']
+    avg_predicted  = data['avg_predicted']
+    ratings_scaled = cl['ratings_scaled']
+    speaker_codes  = cl['speaker_codes']
+
+    pca5    = PCA(n_components=5)
+    coords5 = pca5.fit_transform(ratings_scaled)          # (n_speakers, 5)
+    pc_vars = pca5.explained_variance_ratio_ * 100
+
+    mean_rating = avg_predicted.reindex(speaker_codes).values
+    valid       = ~np.isnan(mean_rating)
+
+    fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+    axes = axes.flatten()
+
+    for i, ax in enumerate(axes):
+        pc_idx    = i + 1                                 # PC2=1, PC3=2, PC4=3, PC5=4
+        pc_scores = coords5[valid, pc_idx]
+        mr        = mean_rating[valid]
+        names     = [speaker_codes[j] for j in range(len(speaker_codes)) if valid[j]]
+
+        r, p  = stats.pearsonr(mr, pc_scores)
+        xs    = np.linspace(mr.min(), mr.max(), 100)
+        sl, ic = np.polyfit(mr, pc_scores, 1)
+
+        ax.scatter(mr, pc_scores, s=70, alpha=0.7, edgecolors='k', color='steelblue')
+        ax.plot(xs, sl * xs + ic, 'r-', lw=2)
+        for j, sp in enumerate(names):
+            ax.annotate(sp, (mr[j], pc_scores[j]), fontsize=7,
+                        xytext=(4, 3), textcoords='offset points')
+        ax.axhline(0, color='gray', lw=0.8, ls='--', alpha=0.5)
+        ax.set_xlabel('Mean Listener Rating (1=Straight, 5=Gay)')
+        ax.set_ylabel(f'PC{pc_idx + 1} Score ({pc_vars[pc_idx]:.1f}% var)')
+        ax.set_title(f'PC{pc_idx + 1} vs Mean Rating\nr = {r:.3f}, p = {p:.4f}')
+        ax.grid(True, alpha=0.3)
+
+        log(f"## 5E{i + 1}. PC{pc_idx + 1} vs Mean Listener Rating")
+        log(f"- Pearson r = {r:.4f}, p = {p:.4f}")
+        log(f"- R² = {r ** 2:.4f}")
+        log(f"- Variance explained by PC{pc_idx + 1}: {pc_vars[pc_idx]:.1f}%\n")
+
+    plt.suptitle('5E: Higher PCs vs Mean Listener Rating\n'
+                 '(PC1 ≈ consensus; do PC2–PC5 capture structured disagreement?)',
+                 fontsize=13, y=1.01)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, '5E_higher_pcs_vs_mean_rating.png'),
+                bbox_inches='tight')
+    plt.close()
+
+
+def analysis_5f(data, log, cl):
+    """5F: SD of listener ratings per speaker vs |PC2| score."""
+    print("--- 5F: Speaker Rating SD vs |PC2| ---")
+    OUTPUT_DIR    = data['OUTPUT_DIR']
+    speaker_sd    = data['speaker_sd_all']
+    pca_coords    = cl['pca_coords']
+    pc2_var       = cl['pc2_var']
+    speaker_codes = cl['speaker_codes']
+
+    pc2_scores = pd.Series(pca_coords[:, 1], index=speaker_codes)
+
+    df = pd.DataFrame({
+        'SD':   speaker_sd.reindex(speaker_codes),
+        'AbsPC2': pc2_scores.abs(),
+    }).dropna()
+
+    r, p   = stats.pearsonr(df['SD'], df['AbsPC2'])
+    xs     = np.linspace(df['SD'].min(), df['SD'].max(), 100)
+    sl, ic = np.polyfit(df['SD'], df['AbsPC2'], 1)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.scatter(df['SD'], df['AbsPC2'], s=80, alpha=0.7, edgecolors='k', color='darkorange')
+    ax.plot(xs, sl * xs + ic, 'r-', lw=2)
+    for sp in df.index:
+        ax.annotate(sp, (df.loc[sp, 'SD'], df.loc[sp, 'AbsPC2']),
+                    fontsize=7.5, xytext=(5, 3), textcoords='offset points')
+    ax.set_xlabel('SD of Listener Ratings (low = high agreement)')
+    ax.set_ylabel(f'|PC2 Score| ({pc2_var:.1f}% var)')
+    ax.set_title(f'5F: Speaker Rating SD vs |PC2|\nr = {r:.3f}, p = {p:.4f}')
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, '5F_sd_vs_pc2.png'))
+    plt.close()
+
+    log("## 5F. Speaker Rating SD vs |PC2|")
+    log(f"- Pearson r = {r:.4f}, p = {p:.4f}")
+    log(f"- R² = {r ** 2:.4f}")
+    log("- r ~= 0  => PC2 is NOT simply capturing disagreement magnitude")
+    log("- r > 0   => high-SD speakers sit further from the PC2 origin\n")
+
+
 # ============================================================
 
 def main():
     # ── Edit RUN to run only specific analyses. Empty set = run all. ──
     # Valid keys: '1A','1B','1C','1D','1E','2A','2B','3A','3B','4A',
     #             '5A','5B','5C1','5C2','5C3','5C4','5C5','5C6','5D',
-    #             '6A','6B','6C','7A','7B','8A','8B'
+    #             '5E','5F','6A','6B','6C','7A','7B','8A','8B'
     RUN = set()
 
     run_all = not RUN
@@ -1420,7 +1514,7 @@ def main():
     if should_run('5B'): analysis_5b(data, log)
 
     # Clustering setup — only when needed (expensive)
-    CLUSTER_IDS = {'5C1','5C2','5C3','5C4','5C5','5C6','5D'}
+    CLUSTER_IDS = {'5C1','5C2','5C3','5C4','5C5','5C6','5D','5E','5F'}
     cl = None
     if run_all or RUN & CLUSTER_IDS:
         print("\n--- Setting up clustering (PCA + K-means) ---")
@@ -1434,6 +1528,8 @@ def main():
         if should_run('5C5'): analysis_5c5(data, log, cl)
         if should_run('5C6'): analysis_5c6(data, log, cl)
         if should_run('5D'):  analysis_5d(data, log, cl)
+        if should_run('5E'):  analysis_5e(data, log, cl)
+        if should_run('5F'):  analysis_5f(data, log, cl)
 
     # ---- Section 6: Response Bias ----
     if should_run('6A'): analysis_6a(data, log)

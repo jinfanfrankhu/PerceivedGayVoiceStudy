@@ -130,6 +130,21 @@ Missing ratings: 12 / 3060 (0.4%)
 - Negative r = speakers at PC1 extremes are rated MORE accurately
 - Positive r = speakers at PC1 extremes are rated LESS accurately
 
+## 5E. Higher PCs vs Mean Listener Rating
+- PC2 vs mean rating: r = -0.0131, p = 0.9393, R² = 0.0002 (PC2 explains 6.1% variance)
+- PC3 vs mean rating: r = 0.0257, p = 0.8817, R² = 0.0007 (PC3 explains 5.6% variance)
+- PC4 vs mean rating: r = 0.0208, p = 0.9041, R² = 0.0004 (PC4 explains 4.6% variance)
+- PC5 vs mean rating: r = 0.0040, p = 0.9816, R² = 0.0000 (PC5 explains 4.1% variance)
+- All r ~= 0: PC2-PC5 are orthogonal to consensus perceived gayness (PC1)
+- PC2+ capture structurally different listener variation, not shared perception signal
+
+## 5F. Speaker Rating SD vs |PC2|
+- Pearson r = 0.3559, p = 0.0332, R² = 0.1266
+- Significant positive relationship: high-SD speakers tend to have larger |PC2| scores
+- Speakers driving this: HY17, AB8, WCL31, MM4, RU35 (high disagreement + high |PC2|)
+- Interpretation: PC2 partly captures structured listener disagreement, not pure noise
+- But R² = 0.13 means most of PC2 variance is NOT explained by disagreement magnitude alone
+
 ## 6A. Listener Response Bias
 - Grand mean rating: 2.726
 - SD of listener means: 0.392
