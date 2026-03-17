@@ -1,24 +1,24 @@
 # Gay Voice Perception Research - Analysis Summary
 
-## Sample: 86 listeners, 36 speakers
-Missing ratings: 12 / 3096 (0.4%)
+## Sample: 85 listeners, 36 speakers
+Missing ratings: 12 / 3060 (0.4%)
 
 ## 1A. Overall Accuracy
 - Pearson r = 0.2875, R² = 0.0826, p = 0.089102
 - Regression: predicted = 0.150 * actual + 2.339
 
 ## 1B. Accuracy by Gender
-- Male: r = 0.3138, R² = 0.0985, N = 32
+- Male: r = 0.3139, R² = 0.0985, N = 31
 - Female: r = 0.2581, R² = 0.0666, N = 54
 
 ## 1C. Accuracy by Orientation
 - Gay/Lesbian: insufficient data (N=2)
-- Straight: r = 0.2685, R² = 0.0721, N = 71
+- Straight: r = 0.2685, R² = 0.0721, N = 70
 - Bi/Pan: r = 0.1523, R² = 0.0232, N = 4
 - Other/Prefer not to say: r = 0.3396, R² = 0.1153, N = 8
 
 ## 1D. Accuracy by Familiarity
-- Low: r = 0.2441, R² = 0.0596, N = 31
+- Low: r = 0.2441, R² = 0.0596, N = 30
 - Medium: r = 0.2740, R² = 0.0751, N = 44
 - High: r = 0.3412, R² = 0.1164, N = 10
 
@@ -34,17 +34,18 @@ Missing ratings: 12 / 3096 (0.4%)
 - Familiarity vs accuracy: r=0.177, p=0.1043
 
 ## 3A. Inter-Rater Reliability (ICC)
-- ICC(2,1) single measures = 0.2317
-- ICC(2,k) average measures = 0.9629
-- Computed on 27 speakers with complete data across 86 raters
+- ICC(2,1) single measures = 0.2380
+- ICC(2,k) average measures = 0.9637
+- Computed on 27 speakers with complete data across 85 raters
+- (Mean-imputed, all 36 speakers) ICC(2,1) = 0.2457, ICC(2,k) = 0.9651
 
 ## 3B. Per-Speaker Agreement
-- Highest agreement (lowest SD): AI9 (SD=0.896)
-- Lowest agreement (highest SD): RU35 (SD=1.662)
-- Mean SD across speakers: 1.376
+- Highest agreement (lowest SD): AI9 (SD=0.900)
+- Lowest agreement (highest SD): RU35 (SD=1.658)
+- Mean SD across speakers: 1.368
 
 ## 4A. Consensus vs Accuracy
-- Correlation between SD and absolute error: r = 0.2740, p = 0.1059
+- Correlation between SD and absolute error: r = 0.2691, p = 0.1125
 - Interpretation: Higher agreement associated with higher accuracy
 
 ## 5A. Speaker Readability
@@ -59,7 +60,7 @@ Missing ratings: 12 / 3096 (0.4%)
   - 5 (Gay): N=8, Mean error=1.766
 
 ## 5C1. Hierarchical Clustering
-- Ward linkage on standardized 86-dimensional listener rating vectors
+- Ward linkage on standardized 85-dimensional listener rating vectors
 - See dendrogram plot for speaker groupings
 
 ## 5C2. PCA Variance Diagnostics
@@ -73,11 +74,11 @@ Missing ratings: 12 / 3096 (0.4%)
 - k=4 silhouette: 0.518
 
 ## 5C4. DBSCAN on 2D PCA
-- Kneedle eps=2.049: 2 cluster(s), 5 noise
+- Kneedle eps=2.048: 2 cluster(s), 5 noise
   - Noise: PP3, DM7, GE15, SI26, XX34
   - Cluster 0: JC1, LQ2, HZ5, AB8, AI9, BR11, DH13, GO16, HY17, JF18, LS20, PE22, PR24, TU27, TY28, VI29, WCL31, WH32, WT33, RU35, QI36
   - Cluster 1: MM4, GA6, BO10, CA12, EX14, LA19, NO21, PL23, PS25, WCH30
-- Conservative eps=1.519: 6 cluster(s), 14 noise
+- Conservative eps=1.520: 6 cluster(s), 14 noise
   - Noise: PP3, MM4, DM7, EX14, GE15, JF18, PL23, SI26, TU27, WCH30, WH32, WT33, XX34, RU35
   - Cluster 0: JC1, DH13, PE22, PR24, VI29
   - Cluster 1: LQ2, HZ5, AI9, BR11, LS20
@@ -92,7 +93,7 @@ Missing ratings: 12 / 3096 (0.4%)
   - Cluster 3: AB8, GO16, HY17, TU27, TY28, WCL31, RU35, QI36
 
 ## 5C5. DBSCAN on 5-Component PCA (51.3% variance)
-- Kneedle eps=5.137: 3 cluster(s), 3 noise
+- Kneedle eps=5.135: 3 cluster(s), 3 noise
   - Noise: PL23, TU27, RU35
   - Cluster 0: JC1, LQ2, MM4, HZ5, GA6, AI9, BO10, BR11, CA12, DH13, EX14, GO16, JF18, LA19, LS20, NO21, PE22, PR24, PS25, TY28, VI29, WCH30, WH32, WT33, XX34
   - Cluster 1: PP3, DM7, GE15, SI26
@@ -104,10 +105,10 @@ Missing ratings: 12 / 3096 (0.4%)
   - Cluster 2: EX14, LA19, PS25
 
 ## 5C6. DBSCAN on 11-Component PCA (71.2% variance)
-- Kneedle eps=5.079: 1 cluster(s), 30 noise
+- Kneedle eps=5.081: 1 cluster(s), 30 noise
   - Noise: JC1, PP3, MM4, GA6, DM7, AB8, BO10, CA12, DH13, EX14, GE15, GO16, HY17, JF18, LA19, NO21, PE22, PL23, PR24, PS25, SI26, TU27, TY28, VI29, WCH30, WCL31, WH32, WT33, RU35, QI36
   - Cluster 0: LQ2, HZ5, AI9, BR11, LS20, XX34
-- Conservative eps=6.575: 4 cluster(s), 14 noise
+- Conservative eps=6.572: 4 cluster(s), 14 noise
   - Noise: MM4, GA6, BO10, DH13, GE15, GO16, HY17, NO21, PL23, TU27, TY28, WCH30, WT33, RU35
   - Cluster 0: JC1, LQ2, HZ5, AI9, BR11, JF18, LS20, PE22, PR24, VI29, WH32, XX34
   - Cluster 1: PP3, DM7, SI26
@@ -115,9 +116,9 @@ Missing ratings: 12 / 3096 (0.4%)
   - Cluster 3: CA12, EX14, LA19, PS25
 
 ## 5D1. PC1 vs Actual Orientation
-- Pearson r = 0.2726, p = 0.1077
+- Pearson r = 0.2727, p = 0.1077
 - R² = 0.0743
-- PC1 range: [-7.534, 11.671]
+- PC1 range: [-7.534, 11.670]
 
 ## 5D2. PC1 vs Mean Rating
 - Pearson r = 0.9977, p = 0.0000
@@ -125,21 +126,22 @@ Missing ratings: 12 / 3096 (0.4%)
 - High r² validates PC1 as the consensus perceived-gayness dimension
 
 ## 5D3. |PC1| vs Absolute Error
-- Pearson r = -0.1720, p = 0.3159
+- Pearson r = -0.1720, p = 0.3158
 - Negative r = speakers at PC1 extremes are rated MORE accurately
 - Positive r = speakers at PC1 extremes are rated LESS accurately
 
 ## 6A. Listener Response Bias
-- Grand mean rating: 2.706
-- SD of listener means: 0.432
-- Range: [1.00, 3.58]
+- Grand mean rating: 2.726
+- SD of listener means: 0.392
+- Range: [1.94, 3.58]
 
 ## 6B. Religiosity vs Rating Bias
-- r = 0.0578, p = 0.6013
+- r = 0.0398, p = 0.7212
+- More religious listeners rate speakers as gayer
 
 ## 6C. Listener Response Range
-- Mean listener SD: 1.532
-- Range of SDs: [0.00, 1.89]
+- Mean listener SD: 1.550
+- Range of SDs: [1.09, 1.89]
 
 ## 7A. Gender x Orientation Interaction
 - statsmodels not available; skipping formal ANOVA
@@ -148,22 +150,22 @@ Missing ratings: 12 / 3096 (0.4%)
 - Gay speakers (actual >= 4): 8 speakers
 - Straight speakers (actual <= 2): 20 speakers
 - Gay listeners: MAE for gay speakers = 1.675, for straight speakers = 0.860
-- Straight listeners: MAE for gay speakers = 1.840, for straight speakers = 1.449
+- Straight listeners: MAE for gay speakers = 1.810, for straight speakers = 1.465
 - Bi/Pan listeners: MAE for gay speakers = 1.556, for straight speakers = 1.685
 
 ## 8A. Signal Detection Theory
 - Threshold for dichotomization: 3.0
-- Mean d' = 0.1164 (SD = 0.5021)
-- Mean criterion c = -0.0546 (SD = 0.3758)
+- Mean d' = 0.1127 (SD = 0.5039)
+- Mean criterion c = -0.0771 (SD = 0.3144)
 - d' > 0 indicates above-chance sensitivity
 
 ## 8B. d' by Listener Group
-- Gender=Male: Mean d'=0.186, N=32
+- Gender=Male: Mean d'=0.178, N=31
 - Gender=Female: Mean d'=0.075, N=54
-- Orientation=Straight: Mean d'=0.107, N=71
+- Orientation=Straight: Mean d'=0.103, N=70
 - Orientation=Bi/Pan: Mean d'=-0.033, N=4
 - Orientation=Gay: Mean d'=0.416, N=2
-- Familiarity=Low: Mean d'=0.046, N=31
+- Familiarity=Low: Mean d'=0.033, N=30
 - Familiarity=Medium: Mean d'=0.130, N=44
 - Familiarity=High: Mean d'=0.213, N=10
 
