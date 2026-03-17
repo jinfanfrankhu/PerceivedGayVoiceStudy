@@ -582,6 +582,74 @@ def analysis_3b(data, log):
     log(f"- Mean SD across speakers: {speaker_sd.mean():.3f}\n")
 
 
+def analysis_3c(data, log):
+    """3C: ICC(2,1) and ICC(2,k) stratified by listener gender and gay familiarity."""
+    print("--- 3C: ICC by Demographics ---")
+    ratings      = data['ratings']
+    demographics = data['demographics']
+    fam          = data['fam']
+    OUTPUT_DIR   = data['OUTPUT_DIR']
+
+    groups = {
+        'Male':       demographics['Gender'] == 1,
+        'Female':     demographics['Gender'] == 2,
+        'Fam: Low':   fam == 'Low',
+        'Fam: Medium':fam == 'Medium',
+        'Fam: High':  fam == 'High',
+    }
+
+    results = {}
+    for label, mask in groups.items():
+        sub = ratings.loc[mask.values]
+        n   = sub.shape[0]
+        if n < 3:
+            results[label] = (np.nan, np.nan, n)
+            continue
+        sub_imp = sub.apply(lambda col: col.fillna(col.mean()), axis=0)
+        sub_imp = sub_imp.fillna(sub_imp.stack().mean())
+        icc21, icc2k = _compute_icc(sub_imp.values)
+        results[label] = (icc21, icc2k, n)
+
+    log("## 3C. ICC by Demographic Group")
+    for label, (icc21, icc2k, n) in results.items():
+        if np.isnan(icc21):
+            log(f"- {label} (N={n}): insufficient data")
+        else:
+            log(f"- {label} (N={n}): ICC(2,1) = {icc21:.4f}, ICC(2,k) = {icc2k:.4f}")
+    log("")
+
+    labels = list(results.keys())
+    icc21s = [results[l][0] for l in labels]
+    icc2ks = [results[l][1] for l in labels]
+    ns     = [results[l][2] for l in labels]
+    x      = np.arange(len(labels))
+    width  = 0.35
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+    bars1 = ax.bar(x - width/2, icc21s, width, label='ICC(2,1) single',
+                   color='steelblue', edgecolor='k', alpha=0.85)
+    bars2 = ax.bar(x + width/2, icc2ks, width, label='ICC(2,k) average',
+                   color='salmon',    edgecolor='k', alpha=0.85)
+    for bar, val in zip(bars1, icc21s):
+        if not np.isnan(val):
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                    f'{val:.3f}', ha='center', va='bottom', fontsize=9)
+    for bar, val in zip(bars2, icc2ks):
+        if not np.isnan(val):
+            ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                    f'{val:.3f}', ha='center', va='bottom', fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels([f'{l}\n(N={ns[i]})' for i, l in enumerate(labels)], fontsize=10)
+    ax.set_ylabel('ICC Value')
+    ax.set_ylim(0, 1.1)
+    ax.axhline(0, color='k', lw=0.5)
+    ax.set_title('3C: Inter-Rater Reliability by Demographic Group')
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, '3C_icc_by_demographics.png'))
+    plt.close()
+
+
 def analysis_4a(data, log):
     print("--- 4A: Consensus vs Accuracy ---")
     speaker_codes  = data['speaker_codes']
@@ -1465,13 +1533,62 @@ def analysis_5f(data, log, cl):
     log("- r > 0   => high-SD speakers sit further from the PC2 origin\n")
 
 
+def analysis_5g(data, log, cl):
+    """5G: Total non-consensus PCA distance (PC2-PC5) vs speaker rating SD."""
+    print("--- 5G: Non-Consensus PCA Distance vs SD ---")
+    OUTPUT_DIR     = data['OUTPUT_DIR']
+    speaker_sd     = data['speaker_sd_all']
+    ratings_scaled = cl['ratings_scaled']
+    speaker_codes  = cl['speaker_codes']
+
+    pca5    = PCA(n_components=5)
+    coords5 = pca5.fit_transform(ratings_scaled)
+    pc_vars = pca5.explained_variance_ratio_ * 100
+
+    # Euclidean norm of PC2-PC5 per speaker
+    nc_dist = pd.Series(
+        np.sqrt((coords5[:, 1:] ** 2).sum(axis=1)),
+        index=speaker_codes
+    )
+
+    df = pd.DataFrame({
+        'SD':     speaker_sd.reindex(speaker_codes),
+        'NCDist': nc_dist,
+    }).dropna()
+
+    r, p   = stats.pearsonr(df['SD'], df['NCDist'])
+    xs     = np.linspace(df['SD'].min(), df['SD'].max(), 100)
+    sl, ic = np.polyfit(df['SD'], df['NCDist'], 1)
+    var_pct = sum(pc_vars[1:5])
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.scatter(df['SD'], df['NCDist'], s=80, alpha=0.7, edgecolors='k', color='mediumpurple')
+    ax.plot(xs, sl * xs + ic, 'r-', lw=2)
+    for sp in df.index:
+        ax.annotate(sp, (df.loc[sp, 'SD'], df.loc[sp, 'NCDist']),
+                    fontsize=7.5, xytext=(5, 3), textcoords='offset points')
+    ax.set_xlabel('SD of Listener Ratings (low = high agreement)')
+    ax.set_ylabel(f'Non-Consensus Distance sqrt(PC2^2+...+PC5^2) ({var_pct:.1f}% var)')
+    ax.set_title(f'5G: Rating Disagreement vs Non-Consensus PCA Distance\nr = {r:.3f}, p = {p:.4f}')
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, '5G_sd_vs_nonconsensus_dist.png'))
+    plt.close()
+
+    log("## 5G. Rating SD vs Non-Consensus PCA Distance (PC2-PC5)")
+    log(f"- Pearson r = {r:.4f}, p = {p:.4f}")
+    log(f"- R2 = {r ** 2:.4f}")
+    log(f"- Non-consensus distance = sqrt(PC2^2 + PC3^2 + PC4^2 + PC5^2)")
+    log(f"- Variance captured by PC2-PC5: {var_pct:.1f}%\n")
+
+
 # ============================================================
 
 def main():
     # ── Edit RUN to run only specific analyses. Empty set = run all. ──
     # Valid keys: '1A','1B','1C','1D','1E','2A','2B','3A','3B','4A',
     #             '5A','5B','5C1','5C2','5C3','5C4','5C5','5C6','5D',
-    #             '5E','5F','6A','6B','6C','7A','7B','8A','8B'
+    #             '5E','5F','5G','6A','6B','6C','7A','7B','8A','8B'
     RUN = set()
 
     run_all = not RUN
@@ -1505,6 +1622,7 @@ def main():
     # ---- Section 3: Reliability ----
     if should_run('3A'): analysis_3a(data, log)
     if should_run('3B'): analysis_3b(data, log)
+    if should_run('3C'): analysis_3c(data, log)
 
     # ---- Section 4: Consensus ----
     if should_run('4A'): analysis_4a(data, log)
@@ -1514,7 +1632,7 @@ def main():
     if should_run('5B'): analysis_5b(data, log)
 
     # Clustering setup — only when needed (expensive)
-    CLUSTER_IDS = {'5C1','5C2','5C3','5C4','5C5','5C6','5D','5E','5F'}
+    CLUSTER_IDS = {'5C1','5C2','5C3','5C4','5C5','5C6','5D','5E','5F','5G'}
     cl = None
     if run_all or RUN & CLUSTER_IDS:
         print("\n--- Setting up clustering (PCA + K-means) ---")
@@ -1530,6 +1648,7 @@ def main():
         if should_run('5D'):  analysis_5d(data, log, cl)
         if should_run('5E'):  analysis_5e(data, log, cl)
         if should_run('5F'):  analysis_5f(data, log, cl)
+        if should_run('5G'):  analysis_5g(data, log, cl)
 
     # ---- Section 6: Response Bias ----
     if should_run('6A'): analysis_6a(data, log)

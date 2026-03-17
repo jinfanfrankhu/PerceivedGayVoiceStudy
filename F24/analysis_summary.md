@@ -44,6 +44,16 @@ Missing ratings: 12 / 3060 (0.4%)
 - Lowest agreement (highest SD): RU35 (SD=1.658)
 - Mean SD across speakers: 1.368
 
+## 3C. ICC by Demographic Group
+- Male (N=31):       ICC(2,1) = 0.2312, ICC(2,k) = 0.9031
+- Female (N=54):     ICC(2,1) = 0.2710, ICC(2,k) = 0.9525
+- Fam: Low (N=30):   ICC(2,1) = 0.1947, ICC(2,k) = 0.8789
+- Fam: Medium (N=44):ICC(2,1) = 0.2895, ICC(2,k) = 0.9472
+- Fam: High (N=10):  ICC(2,1) = 0.2677, ICC(2,k) = 0.7852
+- Female listeners are more consistent than male (ICC(2,k) 0.953 vs 0.903)
+- Low familiarity listeners show weakest agreement (ICC(2,k) 0.879); medium strongest (0.947)
+- High familiarity ICC(2,k) drop (0.785) likely reflects small N=10 attenuating the average-measures estimate
+
 ## 4A. Consensus vs Accuracy
 - Correlation between SD and absolute error: r = 0.2691, p = 0.1125
 - Interpretation: Higher agreement associated with higher accuracy
@@ -144,6 +154,13 @@ Missing ratings: 12 / 3060 (0.4%)
 - Speakers driving this: HY17, AB8, WCL31, MM4, RU35 (high disagreement + high |PC2|)
 - Interpretation: PC2 partly captures structured listener disagreement, not pure noise
 - But R² = 0.13 means most of PC2 variance is NOT explained by disagreement magnitude alone
+
+## 5G. Rating SD vs Non-Consensus PCA Distance (PC2-PC5)
+- Pearson r = 0.7788, p = 0.0000, R² = 0.6066
+- Non-consensus distance = sqrt(PC2^2 + PC3^2 + PC4^2 + PC5^2); PC2-PC5 capture 20.3% variance
+- Much stronger than 5F (|PC2| alone: r=0.356) — pooling across PC2-PC5 reveals the full signal
+- Interpretation: ~61% of variance in listener disagreement is explained by how far speakers scatter in non-consensus PCA space
+- Speakers driving the high end: RU35, BO10, TU27, HY17, PL23 — all high-SD and high non-consensus distance
 
 ## 6A. Listener Response Bias
 - Grand mean rating: 2.726
