@@ -136,7 +136,6 @@ Missing ratings: 12 / 3096 (0.4%)
 
 ## 6B. Religiosity vs Rating Bias
 - r = 0.0578, p = 0.6013
-- More religious listeners rate speakers as gayer
 
 ## 6C. Listener Response Range
 - Mean listener SD: 1.532
