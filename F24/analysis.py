@@ -891,6 +891,96 @@ for lbl in sorted(set(db70_cons)):
 log("")
 
 # ============================================================
+# 5D. PC1 as Perceived Gayness Axis
+# ============================================================
+print("--- 5D: PC1 Analyses ---")
+
+# PC1 score for each speaker (signed: negative = perceived straight, positive = perceived gay)
+pc1_scores = pd.Series(pca_coords[:, 0], index=speaker_codes)
+
+# Align with actual/predicted where available
+df_5d = pd.DataFrame({
+    'PC1': pc1_scores,
+    'Actual': actual_scores,
+    'MeanRating': avg_predicted,
+    'AbsError': abs_error,
+}).dropna()
+
+# ---- 5D1. PC1 vs Actual Orientation ----
+fig, ax = plt.subplots(figsize=(10, 8))
+r_5d1, p_5d1 = stats.pearsonr(df_5d['Actual'], df_5d['PC1'])
+xs = np.linspace(df_5d['Actual'].min(), df_5d['Actual'].max(), 100)
+sl_5d1, ic_5d1 = np.polyfit(df_5d['Actual'], df_5d['PC1'], 1)
+ax.scatter(df_5d['Actual'], df_5d['PC1'], s=80, alpha=0.7, edgecolors='k', color='steelblue')
+ax.plot(xs, sl_5d1 * xs + ic_5d1, 'r-', lw=2)
+for sp in df_5d.index:
+    ax.annotate(sp, (df_5d.loc[sp, 'Actual'], df_5d.loc[sp, 'PC1']),
+                fontsize=7.5, xytext=(5, 3), textcoords='offset points')
+ax.set_xlabel('Actual Sexuality (1=Straight, 5=Gay)')
+ax.set_ylabel(f'PC1 Score ({pc1_var:.1f}% variance)')
+ax.set_title(f'5D1: PC1 (Perceived Gayness Axis) vs Actual Orientation\n'
+             f'r = {r_5d1:.3f}, p = {p_5d1:.4f}')
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5D1_pc1_vs_actual.png'))
+plt.close()
+log("## 5D1. PC1 vs Actual Orientation")
+log(f"- Pearson r = {r_5d1:.4f}, p = {p_5d1:.4f}")
+log(f"- R² = {r_5d1**2:.4f}")
+log(f"- PC1 range: [{df_5d['PC1'].min():.3f}, {df_5d['PC1'].max():.3f}]\n")
+
+# ---- 5D2. PC1 vs Mean Rating ----
+fig, ax = plt.subplots(figsize=(10, 8))
+r_5d2, p_5d2 = stats.pearsonr(df_5d['MeanRating'], df_5d['PC1'])
+xs2 = np.linspace(df_5d['MeanRating'].min(), df_5d['MeanRating'].max(), 100)
+sl_5d2, ic_5d2 = np.polyfit(df_5d['MeanRating'], df_5d['PC1'], 1)
+ax.scatter(df_5d['MeanRating'], df_5d['PC1'], s=80, alpha=0.7, edgecolors='k', color='mediumseagreen')
+ax.plot(xs2, sl_5d2 * xs2 + ic_5d2, 'r-', lw=2)
+for sp in df_5d.index:
+    ax.annotate(sp, (df_5d.loc[sp, 'MeanRating'], df_5d.loc[sp, 'PC1']),
+                fontsize=7.5, xytext=(5, 3), textcoords='offset points')
+ax.set_xlabel('Mean Listener Rating (1=Straight, 5=Gay)')
+ax.set_ylabel(f'PC1 Score ({pc1_var:.1f}% variance)')
+ax.set_title(f'5D2: PC1 vs Mean Listener Rating\n'
+             f'r = {r_5d2:.3f}, p = {p_5d2:.4f}')
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5D2_pc1_vs_mean_rating.png'))
+plt.close()
+log("## 5D2. PC1 vs Mean Rating")
+log(f"- Pearson r = {r_5d2:.4f}, p = {p_5d2:.4f}")
+log(f"- R² = {r_5d2**2:.4f}")
+log("- High r² validates PC1 as the consensus perceived-gayness dimension\n")
+
+# ---- 5D3. |PC1| vs Absolute Error ----
+# Hypothesis: speakers at PC1 extremes (clearly perceived as gay or straight)
+# are rated more accurately (lower abs error)
+df_5d['AbsPC1'] = df_5d['PC1'].abs()
+r_5d3, p_5d3 = stats.pearsonr(df_5d['AbsPC1'], df_5d['AbsError'])
+fig, ax = plt.subplots(figsize=(10, 8))
+xs3 = np.linspace(df_5d['AbsPC1'].min(), df_5d['AbsPC1'].max(), 100)
+sl_5d3, ic_5d3 = np.polyfit(df_5d['AbsPC1'], df_5d['AbsError'], 1)
+sc = ax.scatter(df_5d['AbsPC1'], df_5d['AbsError'], s=80, alpha=0.7, edgecolors='k',
+                c=df_5d['Actual'], cmap='RdYlBu_r', vmin=1, vmax=5)
+ax.plot(xs3, sl_5d3 * xs3 + ic_5d3, 'r-', lw=2)
+for sp in df_5d.index:
+    ax.annotate(sp, (df_5d.loc[sp, 'AbsPC1'], df_5d.loc[sp, 'AbsError']),
+                fontsize=7.5, xytext=(5, 3), textcoords='offset points')
+plt.colorbar(sc, ax=ax, label='Actual Sexuality (1=Straight, 5=Gay)')
+ax.set_xlabel(f'|PC1| — Distance from Perceptual Center ({pc1_var:.1f}% var)')
+ax.set_ylabel('Absolute Error (|mean rating − actual|)')
+ax.set_title(f'5D3: Perceptual Extremity (|PC1|) vs Rating Accuracy\n'
+             f'r = {r_5d3:.3f}, p = {p_5d3:.4f}')
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5D3_pc1_extremity_vs_error.png'))
+plt.close()
+log("## 5D3. |PC1| vs Absolute Error")
+log(f"- Pearson r = {r_5d3:.4f}, p = {p_5d3:.4f}")
+log(f"- Negative r = speakers at PC1 extremes are rated MORE accurately")
+log(f"- Positive r = speakers at PC1 extremes are rated LESS accurately\n")
+
+# ============================================================
 # 6A. Response Bias - Mean Rating per Listener
 # ============================================================
 print("--- 6A: Listener Response Bias ---")

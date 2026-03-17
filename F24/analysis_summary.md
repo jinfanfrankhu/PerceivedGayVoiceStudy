@@ -114,6 +114,21 @@ Missing ratings: 12 / 3096 (0.4%)
   - Cluster 2: AB8, WCL31, QI36
   - Cluster 3: CA12, EX14, LA19, PS25
 
+## 5D1. PC1 vs Actual Orientation
+- Pearson r = 0.2726, p = 0.1077
+- R² = 0.0743
+- PC1 range: [-7.534, 11.671]
+
+## 5D2. PC1 vs Mean Rating
+- Pearson r = 0.9977, p = 0.0000
+- R² = 0.9953
+- High r² validates PC1 as the consensus perceived-gayness dimension
+
+## 5D3. |PC1| vs Absolute Error
+- Pearson r = -0.1720, p = 0.3159
+- Negative r = speakers at PC1 extremes are rated MORE accurately
+- Positive r = speakers at PC1 extremes are rated LESS accurately
+
 ## 6A. Listener Response Bias
 - Grand mean rating: 2.706
 - SD of listener means: 0.432
