@@ -12,9 +12,13 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics import silhouette_score
 from scipy.cluster.hierarchy import dendrogram, linkage
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+from matplotlib.patches import Patch
 
 warnings.filterwarnings('ignore')
 sns.set_style('whitegrid')
@@ -540,48 +544,350 @@ plt.savefig(os.path.join(OUTPUT_DIR, '5B_accuracy_by_actual_score.png'))
 plt.close()
 
 # ============================================================
-# 5C. Speaker Clustering
+# SHARED SETUP FOR ALL 5C SUBSECTIONS
 # ============================================================
-print("--- 5C: Speaker Clustering ---")
-# Use rating vectors (transpose: speakers as rows)
-ratings_T = ratings.T.copy()
-# Fill missing with column mean for clustering, then fill any remaining NaN with grand mean
-ratings_filled = ratings_T.apply(lambda row: row.fillna(row.mean()), axis=1)
-grand = ratings_T.stack().mean()
-ratings_filled = ratings_filled.fillna(grand)
+print("--- 5C: Speaker Clustering (all subsections) ---")
 
-# Hierarchical clustering
-Z = linkage(ratings_filled.values, method='ward')
+# Use rating vectors (transpose: speakers as rows, listeners as columns)
+ratings_T = ratings.T.copy()
+ratings_filled = ratings_T.apply(lambda row: row.fillna(row.mean()), axis=1)
+ratings_filled = ratings_filled.fillna(ratings_T.stack().mean())
+
+# Standardize: critical so DBSCAN distances aren't dominated by high-variance listeners
+scaler = StandardScaler()
+ratings_scaled = scaler.fit_transform(ratings_filled.values)
+
+# Full PCA (all components) — used to find 50%/70% thresholds in 5C2
+pca_full = PCA(n_components=min(ratings_scaled.shape))
+pca_full.fit(ratings_scaled)
+cumvar = np.cumsum(pca_full.explained_variance_ratio_) * 100
+n_50 = int(np.searchsorted(cumvar, 50.0)) + 1   # components needed for >=50%
+n_70 = int(np.searchsorted(cumvar, 70.0)) + 1   # components needed for >=70%
+
+# 2D projection (for visualization in all panels)
+pca2d = PCA(n_components=2)
+pca_coords = pca2d.fit_transform(ratings_scaled)
+pc1_var = pca2d.explained_variance_ratio_[0] * 100
+pc2_var = pca2d.explained_variance_ratio_[1] * 100
+
+# Higher-dimensional projections for 5C5/5C6
+coords_50 = PCA(n_components=n_50).fit_transform(ratings_scaled)
+coords_70 = PCA(n_components=n_70).fit_transform(ratings_scaled)
+
+# ---- Shared helper: kneedle eps selection from a coordinate array ----
+def kneedle_eps(coords, k=3):
+    """Return (eps_elbow, eps_conservative, kth_distances, elbow_idx)."""
+    nbrs = NearestNeighbors(n_neighbors=k).fit(coords)
+    dists, _ = nbrs.kneighbors(coords)
+    kd = np.sort(dists[:, k - 1])[::-1]
+    n = len(kd)
+    xn = np.arange(n, dtype=float) / (n - 1)
+    yn = (kd - kd.min()) / (kd.max() - kd.min())
+    perp = np.abs(xn + yn - 1) / np.sqrt(2)
+    ei = int(np.argmax(perp))
+    return float(kd[ei]), float(np.percentile(kd, 50)), kd, ei
+
+# ---- Shared helper: draw a DBSCAN result onto an existing axes ----
+def plot_dbscan(ax, plot_coords, labels, speaker_names, pc1v, pc2v, title_extra=''):
+    n_cl = len(set(labels)) - (1 if -1 in labels else 0)
+    n_no = list(labels).count(-1)
+    unique_lbl = sorted(set(labels))
+    pal = sns.color_palette('Set1', max(n_cl, 1))
+    ci = 0
+    cmap = {}
+    for lbl in unique_lbl:
+        cmap[lbl] = 'lightgray' if lbl == -1 else pal[ci]; ci += (lbl != -1)
+    pt_colors = [cmap[lbl] for lbl in labels]
+    ax.scatter(plot_coords[:, 0], plot_coords[:, 1],
+               c=pt_colors, s=120, edgecolors='k', alpha=0.9, zorder=3)
+    for i, sp in enumerate(speaker_names):
+        ax.annotate(sp, (plot_coords[i, 0], plot_coords[i, 1]),
+                    fontsize=7.5, xytext=(5, 5), textcoords='offset points')
+    legend_els = [Patch(facecolor=cmap[lbl], edgecolor='k',
+                        label='Noise (ambiguous)' if lbl == -1 else f'Cluster {lbl}')
+                  for lbl in unique_lbl]
+    ax.legend(handles=legend_els, loc='best', fontsize=8)
+    ax.set_xlabel(f'PC1 ({pc1v:.1f}% var)')
+    ax.set_ylabel(f'PC2 ({pc2v:.1f}% var)')
+    ax.set_title(f'{n_cl} cluster(s), {n_no}/{len(speaker_names)} noise\n{title_extra}')
+    return labels, n_cl, n_no
+
+# ============================================================
+# 5C1. Hierarchical Clustering Dendrogram
+# ============================================================
+print("--- 5C1: Hierarchical Clustering ---")
+Z = linkage(ratings_scaled, method='ward')
 fig, ax = plt.subplots(figsize=(14, 8))
 dendrogram(Z, labels=speaker_codes, leaf_rotation=45, leaf_font_size=9, ax=ax)
-ax.set_title('Hierarchical Clustering of Speakers by Perception Profiles')
+ax.set_title('5C1: Hierarchical Clustering of Speakers\n'
+             'by Listener Perception Profiles (Ward linkage, standardized)')
 ax.set_ylabel('Ward Distance')
 plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, '5C_speaker_clustering.png'))
+plt.savefig(os.path.join(OUTPUT_DIR, '5C1_hierarchical_dendrogram.png'))
 plt.close()
+log("## 5C1. Hierarchical Clustering")
+log("- Ward linkage on standardized 86-dimensional listener rating vectors")
+log("- See dendrogram plot for speaker groupings\n")
 
-# Also do PCA + k-means
-pca = PCA(n_components=2)
-pca_coords = pca.fit_transform(ratings_filled.values)
-kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
-clusters = kmeans.fit_predict(ratings_filled.values)
+# ============================================================
+# 5C2. PCA Variance Diagnostics — Scree + Cumulative
+# ============================================================
+print("--- 5C2: PCA Variance Diagnostics ---")
+n_show = min(20, len(cumvar))  # show first 20 components
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
 
-fig, ax = plt.subplots(figsize=(11, 8))
-scatter = ax.scatter(pca_coords[:, 0], pca_coords[:, 1], c=clusters, cmap='Set1', s=100, edgecolors='k', alpha=0.8)
-for i, sp in enumerate(speaker_codes):
-    ax.annotate(sp, (pca_coords[i, 0], pca_coords[i, 1]), fontsize=8, xytext=(5, 5), textcoords='offset points')
-ax.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]*100:.1f}% var)')
-ax.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]*100:.1f}% var)')
-ax.set_title('Speaker Clustering (PCA + K-means, k=3)')
-plt.legend(*scatter.legend_elements(), title="Cluster")
+# Scree plot
+ax = axes[0]
+ax.bar(range(1, n_show + 1), pca_full.explained_variance_ratio_[:n_show] * 100,
+       color='steelblue', edgecolor='k', alpha=0.8)
+ax.set_xlabel('Principal Component')
+ax.set_ylabel('Variance Explained (%)')
+ax.set_title('Scree Plot\n(each bar = one PC)')
+ax.grid(axis='y', alpha=0.3)
+
+# Cumulative variance
+ax = axes[1]
+ax.plot(range(1, n_show + 1), cumvar[:n_show], 'b-o', markersize=6)
+ax.axhline(50, color='orange', ls='--', lw=1.5, label=f'50% threshold → {n_50} components')
+ax.axhline(70, color='red',    ls='--', lw=1.5, label=f'70% threshold → {n_70} components')
+ax.axvline(n_50, color='orange', ls=':', lw=1, alpha=0.7)
+ax.axvline(n_70, color='red',    ls=':', lw=1, alpha=0.7)
+ax.axvline(2,    color='gray',   ls=':', lw=1, alpha=0.7)
+ax.text(2.2, 5, f'2D PCA\n({pc1_var+pc2_var:.1f}%)', color='gray', fontsize=8)
+ax.set_xlabel('Number of Components')
+ax.set_ylabel('Cumulative Variance Explained (%)')
+ax.set_title('Cumulative Variance Explained\n(how many PCs needed?)')
+ax.legend(fontsize=9)
+ax.grid(True, alpha=0.3)
+ax.set_ylim(0, 105)
+
+plt.suptitle('5C2: PCA Variance Diagnostics', fontsize=13, y=1.01)
 plt.tight_layout()
-plt.savefig(os.path.join(OUTPUT_DIR, '5C_speaker_clustering_pca.png'))
+plt.savefig(os.path.join(OUTPUT_DIR, '5C2_pca_variance_diagnostics.png'), bbox_inches='tight')
 plt.close()
-log("## 5C. Speaker Clustering")
-log(f"- PCA: PC1 explains {pca.explained_variance_ratio_[0]*100:.1f}%, PC2 explains {pca.explained_variance_ratio_[1]*100:.1f}%")
-for c in range(3):
-    members = [speaker_codes[i] for i in range(36) if clusters[i] == c]
-    log(f"- Cluster {c}: {', '.join(members)}")
+log("## 5C2. PCA Variance Diagnostics")
+log(f"- PC1 = {pc1_var:.1f}%, PC2 = {pc2_var:.1f}%, 2D total = {pc1_var+pc2_var:.1f}%")
+log(f"- Components needed for 50% variance: {n_50} (PC1–PC{n_50}: {cumvar[n_50-1]:.1f}%)")
+log(f"- Components needed for 70% variance: {n_70} (PC1–PC{n_70}: {cumvar[n_70-1]:.1f}%)\n")
+
+# ============================================================
+# 5C3. K-means Diagnostics (Elbow + Silhouette)
+# ============================================================
+print("--- 5C3: K-means Diagnostics ---")
+k_range = range(2, min(10, len(speaker_codes) - 1))
+inertias, sil_scores = [], []
+for k in k_range:
+    km = KMeans(n_clusters=k, random_state=42, n_init=10)
+    lbls = km.fit_predict(pca_coords)
+    inertias.append(km.inertia_)
+    sil_scores.append(silhouette_score(pca_coords, lbls) if len(set(lbls)) > 1 else np.nan)
+
+best_k = list(k_range)[np.nanargmax(sil_scores)]
+
+fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+axes[0].plot(list(k_range), inertias, 'bo-', markersize=7)
+axes[0].set_xlabel('Number of clusters k')
+axes[0].set_ylabel('Inertia (within-cluster sum of squares)')
+axes[0].set_title('K-means Elbow Plot\n(look for bend to choose k)')
+axes[0].grid(True, alpha=0.3)
+
+axes[1].plot(list(k_range), sil_scores, 'ro-', markersize=7)
+axes[1].axvline(best_k, color='green', ls='--', lw=1.5, label=f'Best k={best_k}')
+axes[1].set_xlabel('Number of clusters k')
+axes[1].set_ylabel('Silhouette Score (higher = better)')
+axes[1].set_title('K-means Silhouette Scores\n(higher = clusters are more distinct)')
+axes[1].legend(fontsize=9)
+axes[1].grid(True, alpha=0.3)
+
+plt.suptitle('5C3: K-means Diagnostics (run on 2D PCA coords)', fontsize=13, y=1.01)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5C3_kmeans_diagnostics.png'), bbox_inches='tight')
+plt.close()
+log("## 5C3. K-means Diagnostics (2D PCA)")
+log(f"- Best k by silhouette: k={best_k} (score={sil_scores[list(k_range).index(best_k)]:.3f})")
+log(f"- k=3 silhouette: {sil_scores[list(k_range).index(3)]:.3f}" if 3 in k_range else "")
+log(f"- k=4 silhouette: {sil_scores[list(k_range).index(4)]:.3f}" if 4 in k_range else "")
+log("")
+
+# ============================================================
+# 5C4. DBSCAN on 2D PCA + K-means k=4 Comparison
+# ============================================================
+print("--- 5C4: DBSCAN on 2D PCA ---")
+eps_elbow_2d, eps_cons_2d, kd_2d, ei_2d = kneedle_eps(pca_coords, k=3)
+
+# k-distance plot
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(range(1, len(kd_2d) + 1), kd_2d, 'b-o', markersize=5, label='k-distance')
+ax.axhline(eps_elbow_2d, color='red',    ls='--', lw=1.8,
+           label=f'Kneedle eps = {eps_elbow_2d:.2f} (point {ei_2d+1})')
+ax.axhline(eps_cons_2d,  color='orange', ls=':',  lw=1.8,
+           label=f'Conservative eps = {eps_cons_2d:.2f} (50th pct)')
+ax.axvline(ei_2d + 1, color='red', ls='--', lw=1, alpha=0.5)
+ax.set_xlabel('Speakers ranked: most isolated → most surrounded')
+ax.set_ylabel('Distance to 3rd nearest neighbor')
+ax.set_title('5C4: DBSCAN Eps Selection — k-Distance Plot (2D PCA space)\n'
+             'Steep left = isolated/noise; flat right = cluster members; elbow = eps')
+ax.legend(fontsize=9)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5C4_dbscan_kdistance_2d.png'))
+plt.close()
+
+# Three-panel: DBSCAN kneedle | DBSCAN conservative | K-means k=4
+fig, axes = plt.subplots(1, 3, figsize=(24, 8))
+
+db2d_elbow = DBSCAN(eps=eps_elbow_2d, min_samples=3).fit_predict(pca_coords)
+db_labels, n_cl_e, n_no_e = plot_dbscan(
+    axes[0], pca_coords, db2d_elbow, speaker_codes, pc1_var, pc2_var,
+    title_extra=f'DBSCAN kneedle eps={eps_elbow_2d:.2f}')
+
+db2d_cons = DBSCAN(eps=eps_cons_2d, min_samples=3).fit_predict(pca_coords)
+db_labels_cons, n_cl_c, n_no_c = plot_dbscan(
+    axes[1], pca_coords, db2d_cons, speaker_codes, pc1_var, pc2_var,
+    title_extra=f'DBSCAN conservative eps={eps_cons_2d:.2f}')
+
+kmeans4 = KMeans(n_clusters=4, random_state=42, n_init=10)
+km4_labels = kmeans4.fit_predict(pca_coords)
+ax = axes[2]
+sc = ax.scatter(pca_coords[:, 0], pca_coords[:, 1],
+                c=km4_labels, cmap='Set1', s=120, edgecolors='k', alpha=0.8)
+for i, sp in enumerate(speaker_codes):
+    ax.annotate(sp, (pca_coords[i, 0], pca_coords[i, 1]),
+                fontsize=7.5, xytext=(5, 5), textcoords='offset points')
+ax.legend(*sc.legend_elements(), title="Cluster", fontsize=8)
+ax.set_xlabel(f'PC1 ({pc1_var:.1f}% var)')
+ax.set_ylabel(f'PC2 ({pc2_var:.1f}% var)')
+ax.set_title(f'K-means k=4 (best silhouette)\nAll speakers forced into a cluster — no noise')
+
+plt.suptitle(f'5C4: Speaker Clustering on 2D PCA ({pc1_var+pc2_var:.1f}% variance)',
+             fontsize=13, y=1.01)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5C4_clustering_2d_comparison.png'), bbox_inches='tight')
+plt.close()
+
+log("## 5C4. DBSCAN on 2D PCA")
+log(f"- Kneedle eps={eps_elbow_2d:.3f}: {n_cl_e} cluster(s), {n_no_e} noise")
+for lbl in sorted(set(db2d_elbow)):
+    members = [speaker_codes[i] for i in range(len(speaker_codes)) if db2d_elbow[i] == lbl]
+    log(f"  - {'Noise' if lbl==-1 else f'Cluster {lbl}'}: {', '.join(members)}")
+log(f"- Conservative eps={eps_cons_2d:.3f}: {n_cl_c} cluster(s), {n_no_c} noise")
+for lbl in sorted(set(db2d_cons)):
+    members = [speaker_codes[i] for i in range(len(speaker_codes)) if db2d_cons[i] == lbl]
+    log(f"  - {'Noise' if lbl==-1 else f'Cluster {lbl}'}: {', '.join(members)}")
+log(f"- K-means k=4 cluster members:")
+for c in range(4):
+    members = [speaker_codes[i] for i in range(len(speaker_codes)) if km4_labels[i] == c]
+    log(f"  - Cluster {c}: {', '.join(members)}")
+log("")
+
+# ============================================================
+# 5C5. DBSCAN on First N Components → 50% Variance
+# ============================================================
+print(f"--- 5C5: DBSCAN on {n_50} components (>= 50% variance) ---")
+eps_elbow_50, eps_cons_50, kd_50, ei_50 = kneedle_eps(coords_50, k=3)
+
+# k-distance plot
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(range(1, len(kd_50) + 1), kd_50, 'b-o', markersize=5, label='k-distance')
+ax.axhline(eps_elbow_50, color='red',    ls='--', lw=1.8,
+           label=f'Kneedle eps = {eps_elbow_50:.2f}')
+ax.axhline(eps_cons_50,  color='orange', ls=':',  lw=1.8,
+           label=f'Conservative eps = {eps_cons_50:.2f}')
+ax.axvline(ei_50 + 1, color='red', ls='--', lw=1, alpha=0.5)
+ax.set_xlabel('Speakers ranked: most isolated → most surrounded')
+ax.set_ylabel(f'Distance to 3rd nearest neighbor ({n_50}D space)')
+ax.set_title(f'5C5: DBSCAN Eps Selection — k-Distance Plot ({n_50}-component PCA space)\n'
+             f'Clustering on {n_50} PCs = {cumvar[n_50-1]:.1f}% variance retained')
+ax.legend(fontsize=9)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5C5_dbscan_kdistance_50pct.png'))
+plt.close()
+
+# Clustering panels (plot projected back to 2D for visibility)
+fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+
+db50_elbow = DBSCAN(eps=eps_elbow_50, min_samples=3).fit_predict(coords_50)
+db50_cons  = DBSCAN(eps=eps_cons_50,  min_samples=3).fit_predict(coords_50)
+
+_, n_cl_50e, n_no_50e = plot_dbscan(
+    axes[0], pca_coords, db50_elbow, speaker_codes, pc1_var, pc2_var,
+    title_extra=f'kneedle eps={eps_elbow_50:.2f} | clustered in {n_50}D')
+_, n_cl_50c, n_no_50c = plot_dbscan(
+    axes[1], pca_coords, db50_cons, speaker_codes, pc1_var, pc2_var,
+    title_extra=f'conservative eps={eps_cons_50:.2f} | clustered in {n_50}D')
+
+plt.suptitle(f'5C5: DBSCAN on {n_50}-Component PCA ({cumvar[n_50-1]:.1f}% variance)\n'
+             f'Points plotted in 2D for readability — clusters assigned in {n_50}D',
+             fontsize=13, y=1.01)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5C5_clustering_50pct_variance.png'), bbox_inches='tight')
+plt.close()
+
+log(f"## 5C5. DBSCAN on {n_50}-Component PCA ({cumvar[n_50-1]:.1f}% variance)")
+log(f"- Kneedle eps={eps_elbow_50:.3f}: {n_cl_50e} cluster(s), {n_no_50e} noise")
+for lbl in sorted(set(db50_elbow)):
+    members = [speaker_codes[i] for i in range(len(speaker_codes)) if db50_elbow[i] == lbl]
+    log(f"  - {'Noise' if lbl==-1 else f'Cluster {lbl}'}: {', '.join(members)}")
+log(f"- Conservative eps={eps_cons_50:.3f}: {n_cl_50c} cluster(s), {n_no_50c} noise")
+for lbl in sorted(set(db50_cons)):
+    members = [speaker_codes[i] for i in range(len(speaker_codes)) if db50_cons[i] == lbl]
+    log(f"  - {'Noise' if lbl==-1 else f'Cluster {lbl}'}: {', '.join(members)}")
+log("")
+
+# ============================================================
+# 5C6. DBSCAN on First N Components → 70% Variance
+# ============================================================
+print(f"--- 5C6: DBSCAN on {n_70} components (>= 70% variance) ---")
+eps_elbow_70, eps_cons_70, kd_70, ei_70 = kneedle_eps(coords_70, k=3)
+
+# k-distance plot
+fig, ax = plt.subplots(figsize=(10, 5))
+ax.plot(range(1, len(kd_70) + 1), kd_70, 'b-o', markersize=5, label='k-distance')
+ax.axhline(eps_elbow_70, color='red',    ls='--', lw=1.8,
+           label=f'Kneedle eps = {eps_elbow_70:.2f}')
+ax.axhline(eps_cons_70,  color='orange', ls=':',  lw=1.8,
+           label=f'Conservative eps = {eps_cons_70:.2f}')
+ax.axvline(ei_70 + 1, color='red', ls='--', lw=1, alpha=0.5)
+ax.set_xlabel('Speakers ranked: most isolated → most surrounded')
+ax.set_ylabel(f'Distance to 3rd nearest neighbor ({n_70}D space)')
+ax.set_title(f'5C6: DBSCAN Eps Selection — k-Distance Plot ({n_70}-component PCA space)\n'
+             f'Clustering on {n_70} PCs = {cumvar[n_70-1]:.1f}% variance retained')
+ax.legend(fontsize=9)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5C6_dbscan_kdistance_70pct.png'))
+plt.close()
+
+# Clustering panels
+fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+
+db70_elbow = DBSCAN(eps=eps_elbow_70, min_samples=3).fit_predict(coords_70)
+db70_cons  = DBSCAN(eps=eps_cons_70,  min_samples=3).fit_predict(coords_70)
+
+_, n_cl_70e, n_no_70e = plot_dbscan(
+    axes[0], pca_coords, db70_elbow, speaker_codes, pc1_var, pc2_var,
+    title_extra=f'kneedle eps={eps_elbow_70:.2f} | clustered in {n_70}D')
+_, n_cl_70c, n_no_70c = plot_dbscan(
+    axes[1], pca_coords, db70_cons, speaker_codes, pc1_var, pc2_var,
+    title_extra=f'conservative eps={eps_cons_70:.2f} | clustered in {n_70}D')
+
+plt.suptitle(f'5C6: DBSCAN on {n_70}-Component PCA ({cumvar[n_70-1]:.1f}% variance)\n'
+             f'Points plotted in 2D for readability — clusters assigned in {n_70}D',
+             fontsize=13, y=1.01)
+plt.tight_layout()
+plt.savefig(os.path.join(OUTPUT_DIR, '5C6_clustering_70pct_variance.png'), bbox_inches='tight')
+plt.close()
+
+log(f"## 5C6. DBSCAN on {n_70}-Component PCA ({cumvar[n_70-1]:.1f}% variance)")
+log(f"- Kneedle eps={eps_elbow_70:.3f}: {n_cl_70e} cluster(s), {n_no_70e} noise")
+for lbl in sorted(set(db70_elbow)):
+    members = [speaker_codes[i] for i in range(len(speaker_codes)) if db70_elbow[i] == lbl]
+    log(f"  - {'Noise' if lbl==-1 else f'Cluster {lbl}'}: {', '.join(members)}")
+log(f"- Conservative eps={eps_cons_70:.3f}: {n_cl_70c} cluster(s), {n_no_70c} noise")
+for lbl in sorted(set(db70_cons)):
+    members = [speaker_codes[i] for i in range(len(speaker_codes)) if db70_cons[i] == lbl]
+    log(f"  - {'Noise' if lbl==-1 else f'Cluster {lbl}'}: {', '.join(members)}")
 log("")
 
 # ============================================================

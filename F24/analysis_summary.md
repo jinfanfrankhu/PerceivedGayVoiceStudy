@@ -58,11 +58,61 @@ Missing ratings: 12 / 3096 (0.4%)
   - 4: N=1, Mean error=2.033
   - 5 (Gay): N=8, Mean error=1.766
 
-## 5C. Speaker Clustering
-- PCA: PC1 explains 31.4%, PC2 explains 6.3%
-- Cluster 0: PP3, DM7, EX14, GE15, LA19, PL23, PS25, SI26, WCH30
-- Cluster 1: JC1, LQ2, HZ5, AI9, BR11, DH13, JF18, LS20, PE22, PR24, VI29, XX34
-- Cluster 2: MM4, GA6, AB8, BO10, CA12, GO16, HY17, NO21, TU27, TY28, WCL31, WH32, WT33, RU35, QI36
+## 5C1. Hierarchical Clustering
+- Ward linkage on standardized 86-dimensional listener rating vectors
+- See dendrogram plot for speaker groupings
+
+## 5C2. PCA Variance Diagnostics
+- PC1 = 30.9%, PC2 = 6.1%, 2D total = 37.0%
+- Components needed for 50% variance: 5 (PC1–PC5: 51.3%)
+- Components needed for 70% variance: 11 (PC1–PC11: 71.2%)
+
+## 5C3. K-means Diagnostics (2D PCA)
+- Best k by silhouette: k=4 (score=0.518)
+- k=3 silhouette: 0.446
+- k=4 silhouette: 0.518
+
+## 5C4. DBSCAN on 2D PCA
+- Kneedle eps=2.049: 2 cluster(s), 5 noise
+  - Noise: PP3, DM7, GE15, SI26, XX34
+  - Cluster 0: JC1, LQ2, HZ5, AB8, AI9, BR11, DH13, GO16, HY17, JF18, LS20, PE22, PR24, TU27, TY28, VI29, WCL31, WH32, WT33, RU35, QI36
+  - Cluster 1: MM4, GA6, BO10, CA12, EX14, LA19, NO21, PL23, PS25, WCH30
+- Conservative eps=1.519: 6 cluster(s), 14 noise
+  - Noise: PP3, MM4, DM7, EX14, GE15, JF18, PL23, SI26, TU27, WCH30, WH32, WT33, XX34, RU35
+  - Cluster 0: JC1, DH13, PE22, PR24, VI29
+  - Cluster 1: LQ2, HZ5, AI9, BR11, LS20
+  - Cluster 2: GA6, CA12, NO21
+  - Cluster 3: AB8, HY17, WCL31
+  - Cluster 4: GO16, TY28, QI36
+  - Cluster 5: BO10, LA19, PS25
+- K-means k=4 cluster members:
+  - Cluster 0: MM4, GA6, BO10, CA12, EX14, LA19, NO21, PL23, PS25, WCH30
+  - Cluster 1: JC1, LQ2, HZ5, AI9, BR11, DH13, JF18, LS20, PE22, PR24, VI29, WH32, WT33, XX34
+  - Cluster 2: PP3, DM7, GE15, SI26
+  - Cluster 3: AB8, GO16, HY17, TU27, TY28, WCL31, RU35, QI36
+
+## 5C5. DBSCAN on 5-Component PCA (51.3% variance)
+- Kneedle eps=5.137: 3 cluster(s), 3 noise
+  - Noise: PL23, TU27, RU35
+  - Cluster 0: JC1, LQ2, MM4, HZ5, GA6, AI9, BO10, BR11, CA12, DH13, EX14, GO16, JF18, LA19, LS20, NO21, PE22, PR24, PS25, TY28, VI29, WCH30, WH32, WT33, XX34
+  - Cluster 1: PP3, DM7, GE15, SI26
+  - Cluster 2: AB8, HY17, WCL31, QI36
+- Conservative eps=3.869: 3 cluster(s), 16 noise
+  - Noise: MM4, GA6, AB8, BO10, CA12, GE15, GO16, HY17, NO21, PL23, TU27, TY28, WCH30, WCL31, RU35, QI36
+  - Cluster 0: JC1, LQ2, HZ5, AI9, BR11, DH13, JF18, LS20, PE22, PR24, VI29, WH32, WT33, XX34
+  - Cluster 1: PP3, DM7, SI26
+  - Cluster 2: EX14, LA19, PS25
+
+## 5C6. DBSCAN on 11-Component PCA (71.2% variance)
+- Kneedle eps=5.079: 1 cluster(s), 30 noise
+  - Noise: JC1, PP3, MM4, GA6, DM7, AB8, BO10, CA12, DH13, EX14, GE15, GO16, HY17, JF18, LA19, NO21, PE22, PL23, PR24, PS25, SI26, TU27, TY28, VI29, WCH30, WCL31, WH32, WT33, RU35, QI36
+  - Cluster 0: LQ2, HZ5, AI9, BR11, LS20, XX34
+- Conservative eps=6.575: 4 cluster(s), 14 noise
+  - Noise: MM4, GA6, BO10, DH13, GE15, GO16, HY17, NO21, PL23, TU27, TY28, WCH30, WT33, RU35
+  - Cluster 0: JC1, LQ2, HZ5, AI9, BR11, JF18, LS20, PE22, PR24, VI29, WH32, XX34
+  - Cluster 1: PP3, DM7, SI26
+  - Cluster 2: AB8, WCL31, QI36
+  - Cluster 3: CA12, EX14, LA19, PS25
 
 ## 6A. Listener Response Bias
 - Grand mean rating: 2.706
