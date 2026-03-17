@@ -58,6 +58,18 @@ Missing ratings: 12 / 3060 (0.4%)
 - Correlation between SD and absolute error: r = 0.2691, p = 0.1125
 - Interpretation: Higher agreement associated with higher accuracy
 
+## 4B. Mean-Based Error vs Individual-Level MAE
+- Individual-level MAE = mean(|rating_i - actual|) per speaker
+- Most speakers sit near the diagonal — the two metrics agree when rating distributions are unimodal
+- Points above diagonal: mean metric overly optimistic due to bimodal cancellation
+- Top 5 divergers (IndivMAE - MeanBased):
+  - TY28: indiv MAE = 1.268, mean-based = 0.147, diff = +1.122
+  - LS20: indiv MAE = 0.932, mean-based = 0.149, diff = +0.783
+  - PS25: indiv MAE = 1.202, mean-based = 0.458, diff = +0.744
+  - WCH30: indiv MAE = 1.548, mean-based = 0.842, diff = +0.706
+  - BO10: indiv MAE = 1.633, mean-based = 0.991, diff = +0.642
+- No clear pattern by actual orientation in divergers (mix of blue and mid-scale)
+
 ## 5A. Speaker Readability
 (See quadrant plot for detailed speaker positions)
 
@@ -215,6 +227,20 @@ Missing ratings: 12 / 3060 (0.4%)
 - QI36: error = 2.419, actual = 5.0, predicted = 2.58
 - PP3: error = 2.300, actual = 2.2, predicted = 4.50
 - PL23: error = 2.240, actual = 1.4, predicted = 3.64
+
+### Top 5 Most Accurately Perceived Speakers (lowest individual-level MAE)
+- SI26: indiv MAE = 0.619, actual = 5.0
+- BR11: indiv MAE = 0.762, actual = 1.0
+- DM7:  indiv MAE = 0.840, actual = 4.6
+- PE22: indiv MAE = 0.918, actual = 1.0
+- LS20: indiv MAE = 0.932, actual = 1.8
+
+### Top 5 Least Accurately Perceived Speakers (highest individual-level MAE)
+- XX34:  indiv MAE = 3.035, actual = 5.0
+- WCL31: indiv MAE = 2.518, actual = 5.0
+- PP3:   indiv MAE = 2.421, actual = 2.2
+- QI36:  indiv MAE = 2.400, actual = 5.0
+- PL23:  indiv MAE = 2.393, actual = 1.4
 
 ### Overall Metrics
 - Mean Absolute Error (MAE): 1.3236

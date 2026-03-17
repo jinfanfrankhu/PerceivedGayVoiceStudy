@@ -679,6 +679,68 @@ def analysis_4a(data, log):
     log(f"- Interpretation: {'Higher agreement associated with higher accuracy' if r_ca > 0 else 'Higher agreement associated with lower accuracy'}\n")
 
 
+def analysis_4b(data, log):
+    """4B: Mean-based error vs individual-level MAE — where does the mean metric mislead?"""
+    print("--- 4B: Mean-based Error vs Individual-level MAE ---")
+    ratings       = data['ratings']
+    actual_scores = data['actual_scores']
+    abs_error     = data['abs_error']
+    speaker_codes = data['speaker_codes']
+    OUTPUT_DIR    = data['OUTPUT_DIR']
+
+    # Per-speaker mean(|rating_i - actual|)
+    indiv_mae = {}
+    for sp in speaker_codes:
+        actual = actual_scores[sp]
+        if pd.isna(actual):
+            continue
+        col = ratings[sp].dropna()
+        if len(col) > 0:
+            indiv_mae[sp] = (col - actual).abs().mean()
+    indiv_mae = pd.Series(indiv_mae)
+
+    df = pd.DataFrame({
+        'MeanBased': abs_error.reindex(speaker_codes),
+        'IndivMAE':  indiv_mae.reindex(speaker_codes),
+        'Actual':    actual_scores.reindex(speaker_codes),
+    }).dropna()
+
+    divergence = (df['IndivMAE'] - df['MeanBased']).sort_values(ascending=False)
+    top_divergers = divergence.head(5)
+
+    fig, ax = plt.subplots(figsize=(10, 9))
+    sc = ax.scatter(df['MeanBased'], df['IndivMAE'], s=80, alpha=0.8, edgecolors='k',
+                    c=df['Actual'], cmap='RdYlBu_r', vmin=1, vmax=5, zorder=3)
+    plt.colorbar(sc, ax=ax, label='Actual Sexuality (1=Straight, 5=Gay)')
+
+    lim_max = max(df['MeanBased'].max(), df['IndivMAE'].max()) * 1.05
+    ax.plot([0, lim_max], [0, lim_max], 'k--', alpha=0.4, lw=1.5, label='y = x (metrics agree)')
+
+    for sp in df.index:
+        ax.annotate(sp, (df.loc[sp, 'MeanBased'], df.loc[sp, 'IndivMAE']),
+                    fontsize=7.5, xytext=(5, 3), textcoords='offset points')
+
+    ax.set_xlabel('Mean-Based Error  |mean(ratings) - actual|')
+    ax.set_ylabel('Individual-Level MAE  mean(|rating_i - actual|)')
+    ax.set_title('4B: Mean-Based Error vs Individual-Level MAE\n'
+                 'Points above diagonal = mean metric was overly optimistic')
+    ax.legend(loc='upper left')
+    ax.set_xlim(0, lim_max); ax.set_ylim(0, lim_max)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, '4B_meanbased_vs_indivmae.png'))
+    plt.close()
+
+    log("## 4B. Mean-Based Error vs Individual-Level MAE")
+    log("- Individual-level MAE = mean(|rating_i - actual|) per speaker")
+    log("- Points above diagonal: mean metric was overly optimistic (bimodal cancellation)")
+    log("- Top 5 divergers (IndivMAE - MeanBased):")
+    for sp, div in top_divergers.items():
+        log(f"  {sp}: indiv MAE = {indiv_mae[sp]:.3f}, mean-based = {abs_error[sp]:.3f}, "
+            f"diff = +{div:.3f}")
+    log("")
+
+
 def analysis_5a(data, log):
     print("--- 5A: Speaker Readability Quadrants ---")
     speaker_codes  = data['speaker_codes']
@@ -1587,7 +1649,7 @@ def analysis_5g(data, log, cl):
 def main():
     # ── Edit RUN to run only specific analyses. Empty set = run all. ──
     # Valid keys: '1A','1B','1C','1D','1E','2A','2B','3A','3B','4A',
-    #             '5A','5B','5C1','5C2','5C3','5C4','5C5','5C6','5D',
+    #             '4B','5A','5B','5C1','5C2','5C3','5C4','5C5','5C6','5D',
     #             '5E','5F','5G','6A','6B','6C','7A','7B','8A','8B'
     RUN = set()
 
@@ -1626,6 +1688,7 @@ def main():
 
     # ---- Section 4: Consensus ----
     if should_run('4A'): analysis_4a(data, log)
+    if should_run('4B'): analysis_4b(data, log)
 
     # ---- Section 5: Speaker Analyses ----
     if should_run('5A'): analysis_5a(data, log)
