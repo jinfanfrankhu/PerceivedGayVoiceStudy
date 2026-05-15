@@ -1,0 +1,4 @@
+timestamp,note,model,accuracy,n_correct,n_total,classes,confusion_matrix,elapsed_s
+20260515_143610,"switched SVC kernel from rbf to linear, C=1.0 to 0.1, and class_weight balanced to reduce overfitting and guessing something other than straight",Binary: straight vs. non-straight,0.38,19,50,"[0, 1]","[[9, 18], [13, 10]]",3.72
+20260515_143610,"switched SVC kernel from rbf to linear, C=1.0 to 0.1, and class_weight balanced to reduce overfitting and guessing something other than straight",3-class: straight / bi / gay,0.28,14,50,"[0, 1, 2]","[[8, 8, 7], [7, 3, 3], [9, 2, 3]]",0.05
+20260515_143610,"switched SVC kernel from rbf to linear, C=1.0 to 0.1, and class_weight balanced to reduce overfitting and guessing something other than straight",Ordinal 1-5: attraction scale,0.18,9,50,"[1, 2, 3, 4, 5]","[[8, 3, 2, 1, 8], [2, 0, 1, 1, 1], [1, 0, 0, 2, 2], [1, 1, 3, 0, 0], [6, 3, 3, 0, 1]]",0.05

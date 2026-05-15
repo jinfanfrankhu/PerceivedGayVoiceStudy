@@ -72,7 +72,7 @@ def run_fold(train_idx, test_idx, X, y):
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
-    clf = SVC(kernel='rbf', C=1.0, gamma='scale')
+    clf = SVC(kernel='linear', C=0.1, class_weight='balanced', random_state=42)
     clf.fit(X_train, y_train)
     return clf.predict(X_test)[0], y_test[0]
 
