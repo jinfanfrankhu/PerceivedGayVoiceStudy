@@ -1,4 +1,4 @@
-pseudonym,Initals,sex. Orient.,Sexual Orientation,Gender Id,race,Born,Raised,YoB,1st Language,Year English,Cleaned
+Pseudonym,Initials,Kinsey Scale (1-5),Self-Described Sexual Orientation,Gender ID,Race,Birth Location,Upbringing Location,Year of Birth,First Language,Years of English Spoken,Cleaned
 Aaron Paul Ingham,API,1,straight,cis male,White,Italy,NYC,2007,Italian,15,Yes
 Abe Ian Kim,AIK,1,straight,cis male,East Asian,CA,Korea,2007,Korean,15,Yes
 Abner Valentine Lo,AVL,4,gay,transman,Asian,NYC,NYC,2002,English,0,Yes
