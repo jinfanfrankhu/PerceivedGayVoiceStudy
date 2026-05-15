@@ -4,6 +4,7 @@ from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import LeaveOneOut
 from sklearn.decomposition import PCA
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -75,11 +76,11 @@ def run_fold(train_idx, test_idx, X, y):
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
     
-    pca = PCA(n_components=15)
-    X_train = pca.fit_transform(X_train)
-    X_test = pca.transform(X_test)
+    # pca = PCA(n_components=15)
+    # X_train = pca.fit_transform(X_train)
+    # X_test = pca.transform(X_test)
     
-    clf = SVC(kernel='linear', C=0.1, class_weight='balanced')
+    clf = RandomForestClassifier(n_estimators=500, class_weight='balanced', random_state=42)
     clf.fit(X_train, y_train)
     return clf.predict(X_test)[0], y_test[0]
 

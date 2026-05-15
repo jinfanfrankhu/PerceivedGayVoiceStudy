@@ -1,0 +1,53 @@
+Run: 20260515_145005
+Note: Random Forest with n_estimators=500, balanced, state=42
+
+Loading data...
+  Merged: 50 speakers, 88 features
+
+Building label vectors...
+  Binary  — straight: 23, non-straight: 27
+  3-class — straight: 23, bi: 13, gay: 14
+  Ordinal — range 1–5, mean 2.64
+
+==================================================
+Starting classification — 3 models, LOOCV
+Chance baselines: binary=50%, 3-class=46%, ordinal=20%
+
+==================================================
+Running: Binary: straight vs. non-straight
+  Speakers: 50 | Classes: [0, 1] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 8.3s
+  Accuracy: 0.380  (19/50 correct)
+  Confusion matrix:
+[[15 12]
+ [19  4]]
+
+==================================================
+Running: 3-class: straight / bi / gay
+  Speakers: 50 | Classes: [0, 1, 2] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 4.5s
+  Accuracy: 0.360  (18/50 correct)
+  Confusion matrix:
+[[18  5  0]
+ [13  0  0]
+ [13  1  0]]
+
+==================================================
+Running: Ordinal 1-5: attraction scale
+  Speakers: 50 | Classes: [1, 2, 3, 4, 5] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 4.4s
+  Accuracy: 0.320  (16/50 correct)
+  Confusion matrix:
+[[16  1  0  1  4]
+ [ 4  0  1  0  0]
+ [ 5  0  0  0  0]
+ [ 5  0  0  0  0]
+ [13  0  0  0  0]]
+
+Done.

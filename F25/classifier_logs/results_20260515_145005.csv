@@ -1,0 +1,4 @@
+timestamp,note,model,accuracy,n_correct,n_total,classes,confusion_matrix,elapsed_s
+20260515_145005,"Random Forest with n_estimators=500, balanced, state=42",Binary: straight vs. non-straight,0.38,19,50,"[0, 1]","[[15, 12], [19, 4]]",8.33
+20260515_145005,"Random Forest with n_estimators=500, balanced, state=42",3-class: straight / bi / gay,0.36,18,50,"[0, 1, 2]","[[18, 5, 0], [13, 0, 0], [13, 1, 0]]",4.45
+20260515_145005,"Random Forest with n_estimators=500, balanced, state=42",Ordinal 1-5: attraction scale,0.32,16,50,"[1, 2, 3, 4, 5]","[[16, 1, 0, 1, 4], [4, 0, 1, 0, 0], [5, 0, 0, 0, 0], [5, 0, 0, 0, 0], [13, 0, 0, 0, 0]]",4.36
