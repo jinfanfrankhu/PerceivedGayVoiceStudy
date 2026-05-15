@@ -1,0 +1,47 @@
+Run: 20260515_152844
+Note: Batching k = 10, 15, 20 and C value range with SelectKBest. Linear, balanced
+k=15  C=0.1
+
+Chance baselines: binary=50%, 3-class=46%, ordinal=20%
+
+==================================================
+Starting classification — 3 models, LOOCV  (k=15, C=0.1)
+
+==================================================
+Running: Binary: straight vs. non-straight
+  Speakers: 50 | Classes: [0, 1] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 0.0s
+  Accuracy: 0.480  (24/50 correct)
+  Confusion matrix:
+[[13 14]
+ [12 11]]
+
+==================================================
+Running: 3-class: straight / bi / gay
+  Speakers: 50 | Classes: [0, 1, 2] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 0.0s
+  Accuracy: 0.240  (12/50 correct)
+  Confusion matrix:
+[[ 9  4 10]
+ [ 5  3  5]
+ [ 7  7  0]]
+
+==================================================
+Running: Ordinal 1-5: attraction scale
+  Speakers: 50 | Classes: [1, 2, 3, 4, 5] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 0.0s
+  Accuracy: 0.140  (7/50 correct)
+  Confusion matrix:
+[[ 6  3  1  1 11]
+ [ 2  0  0  1  2]
+ [ 3  1  0  1  0]
+ [ 1  3  0  0  1]
+ [ 2  6  3  1  1]]
+
+Done.
