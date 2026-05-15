@@ -1,0 +1,4 @@
+timestamp,note,model,accuracy,n_correct,n_total,classes,confusion_matrix,elapsed_s
+20260515_144332,"Using PCA with n_components=5. linear, C=0.1, balanced",Binary: straight vs. non-straight,0.34,17,50,"[0, 1]","[[8, 19], [14, 9]]",3.77
+20260515_144332,"Using PCA with n_components=5. linear, C=0.1, balanced",3-class: straight / bi / gay,0.34,17,50,"[0, 1, 2]","[[8, 8, 7], [3, 5, 5], [6, 4, 4]]",0.06
+20260515_144332,"Using PCA with n_components=5. linear, C=0.1, balanced",Ordinal 1-5: attraction scale,0.2,10,50,"[1, 2, 3, 4, 5]","[[3, 3, 0, 6, 10], [2, 1, 0, 2, 0], [1, 0, 0, 2, 2], [0, 3, 0, 1, 1], [3, 2, 1, 2, 5]]",0.06

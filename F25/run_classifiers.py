@@ -75,7 +75,7 @@ def run_fold(train_idx, test_idx, X, y):
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
     
-    pca = PCA(n_components=10)
+    pca = PCA(n_components=5)
     X_train = pca.fit_transform(X_train)
     X_test = pca.transform(X_test)
     
