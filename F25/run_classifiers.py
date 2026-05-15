@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import LeaveOneOut
+from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score, confusion_matrix
 from joblib import Parallel, delayed
 from tqdm import tqdm
@@ -69,10 +70,16 @@ log(f'  Ordinal — range {y_ordinal.min()}–{y_ordinal.max()}, mean {y_ordinal
 def run_fold(train_idx, test_idx, X, y):
     X_train, X_test = X[train_idx], X[test_idx]
     y_train, y_test = y[train_idx], y[test_idx]
+    
     scaler = StandardScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
-    clf = SVC(kernel='linear', C=0.1, class_weight='balanced', random_state=42)
+    
+    pca = PCA(n_components=10)
+    X_train = pca.fit_transform(X_train)
+    X_test = pca.transform(X_test)
+    
+    clf = SVC(kernel='linear', C=0.1, class_weight='balanced')
     clf.fit(X_train, y_train)
     return clf.predict(X_test)[0], y_test[0]
 

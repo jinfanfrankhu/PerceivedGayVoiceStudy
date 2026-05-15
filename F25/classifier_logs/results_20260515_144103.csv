@@ -1,0 +1,4 @@
+timestamp,note,model,accuracy,n_correct,n_total,classes,confusion_matrix,elapsed_s
+20260515_144103,Using PCA with n_components=10 to reduce noise. SVC parameters same.,Binary: straight vs. non-straight,0.56,28,50,"[0, 1]","[[15, 12], [10, 13]]",3.77
+20260515_144103,Using PCA with n_components=10 to reduce noise. SVC parameters same.,3-class: straight / bi / gay,0.34,17,50,"[0, 1, 2]","[[12, 6, 5], [6, 3, 4], [7, 5, 2]]",0.05
+20260515_144103,Using PCA with n_components=10 to reduce noise. SVC parameters same.,Ordinal 1-5: attraction scale,0.22,11,50,"[1, 2, 3, 4, 5]","[[7, 4, 3, 2, 6], [3, 1, 1, 0, 0], [1, 0, 0, 2, 2], [0, 2, 2, 1, 0], [5, 1, 5, 0, 2]]",0.05
