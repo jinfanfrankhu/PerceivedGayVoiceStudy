@@ -1,0 +1,53 @@
+Run: 20260515_142954
+Note: first run: no class balancing so majority rules
+
+Loading data...
+  Merged: 50 speakers, 88 features
+
+Building label vectors...
+  Binary  — straight: 23, non-straight: 27
+  3-class — straight: 23, bi: 13, gay: 14
+  Ordinal — range 1–5, mean 2.64
+
+==================================================
+Starting classification — 3 models, LOOCV
+Chance baselines: binary=50%, 3-class=46%, ordinal=20%
+
+==================================================
+Running: Binary: straight vs. non-straight
+  Speakers: 50 | Classes: [0, 1] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 3.4s
+  Accuracy: 0.480  (24/50 correct)
+  Confusion matrix:
+[[24  3]
+ [23  0]]
+
+==================================================
+Running: 3-class: straight / bi / gay
+  Speakers: 50 | Classes: [0, 1, 2] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 0.0s
+  Accuracy: 0.420  (21/50 correct)
+  Confusion matrix:
+[[21  1  1]
+ [13  0  0]
+ [14  0  0]]
+
+==================================================
+Running: Ordinal 1-5: attraction scale
+  Speakers: 50 | Classes: [1, 2, 3, 4, 5] | Folds: 50
+  Parallelizing across 12 cores...
+
+  Finished in 0.0s
+  Accuracy: 0.420  (21/50 correct)
+  Confusion matrix:
+[[21  0  0  0  1]
+ [ 5  0  0  0  0]
+ [ 5  0  0  0  0]
+ [ 5  0  0  0  0]
+ [13  0  0  0  0]]
+
+Done.
