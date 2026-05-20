@@ -1,0 +1,14 @@
+name: 08_svr_kbest_sweep
+note: "SVR linear, kbest k=[10,15,20] x C=[0.1,0.3,0.5,0.7,1.0] — regression on Kinsey scale"
+
+model:
+  type: svr
+  kernel: linear
+  C: [0.1, 0.3, 0.5, 0.7, 1.0]
+  epsilon: 0.1
+
+feature_selection:
+  method: kbest
+  k: [10, 15, 20]
+
+labels: [ordinal]

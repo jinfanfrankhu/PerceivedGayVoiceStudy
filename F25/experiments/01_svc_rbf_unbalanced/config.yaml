@@ -1,0 +1,12 @@
+name: 01_svc_rbf_unbalanced
+note: "First run — default SVC (rbf, C=1.0), no class balancing, no feature selection"
+
+model:
+  type: svc
+  kernel: rbf
+  C: 1.0
+
+feature_selection:
+  method: none
+
+labels: [binary, three_class, ordinal]

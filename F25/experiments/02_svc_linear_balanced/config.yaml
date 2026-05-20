@@ -1,0 +1,13 @@
+name: 02_svc_linear_balanced
+note: "SVC linear, C=0.1, class_weight=balanced, no feature selection"
+
+model:
+  type: svc
+  kernel: linear
+  C: 0.1
+  class_weight: balanced
+
+feature_selection:
+  method: none
+
+labels: [binary, three_class, ordinal]

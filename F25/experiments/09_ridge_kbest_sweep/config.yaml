@@ -1,0 +1,12 @@
+name: 09_ridge_kbest_sweep
+note: "Ridge regression, kbest k=[10,15,20] x alpha=[0.01,0.1,1.0,10.0,100.0] — regression on Kinsey scale"
+
+model:
+  type: ridge
+  alpha: [0.01, 0.1, 1.0, 10.0, 100.0]
+
+feature_selection:
+  method: kbest
+  k: [10, 15, 20]
+
+labels: [ordinal]

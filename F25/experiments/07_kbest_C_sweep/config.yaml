@@ -1,0 +1,14 @@
+name: 07_kbest_C_sweep
+note: "SelectKBest k=[10,15,20] x C=[0.1,0.3,0.5,0.7,1.0], SVC linear balanced"
+
+model:
+  type: svc
+  kernel: linear
+  C: [0.1, 0.3, 0.5, 0.7, 1.0]
+  class_weight: balanced
+
+feature_selection:
+  method: kbest
+  k: [10, 15, 20]
+
+labels: [binary, three_class, ordinal]

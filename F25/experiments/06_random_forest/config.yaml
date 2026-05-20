@@ -1,0 +1,13 @@
+name: 06_random_forest
+note: "Random Forest, n_estimators=500, class_weight=balanced, random_state=42"
+
+model:
+  type: random_forest
+  n_estimators: 500
+  class_weight: balanced
+  random_state: 42
+
+feature_selection:
+  method: none
+
+labels: [binary, three_class, ordinal]

@@ -1,0 +1,12 @@
+name: 10_ordinal_ridge_kbest_sweep
+note: "OrdinalRidge (mord), kbest k=[10,15,20] x alpha=[0.01,0.1,1.0,10.0,100.0] — ordinal regression on Kinsey scale"
+
+model:
+  type: ordinal_ridge
+  alpha: [0.01, 0.1, 1.0, 10.0, 100.0]
+
+feature_selection:
+  method: kbest
+  k: [10, 15, 20]
+
+labels: [ordinal]
