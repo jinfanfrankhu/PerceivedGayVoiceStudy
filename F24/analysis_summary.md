@@ -4,34 +4,34 @@
 Missing ratings: 12 / 3060 (0.4%)
 
 ## 1A. Overall Accuracy
-- Pearson r = 0.2875, R² = 0.0826, p = 0.089102
+- Spearman ρ = 0.2769, p = 0.102110
 - Regression: predicted = 0.150 * actual + 2.339
 
 ## 1B. Accuracy by Gender
-- Male: r = 0.3139, R² = 0.0985, N = 31
-- Female: r = 0.2581, R² = 0.0666, N = 54
+- Male: ρ = 0.3196, N = 31
+- Female: ρ = 0.2446, N = 54
 
 ## 1C. Accuracy by Orientation
 - Gay/Lesbian: insufficient data (N=2)
-- Straight: r = 0.2685, R² = 0.0721, N = 70
-- Bi/Pan: r = 0.1523, R² = 0.0232, N = 4
-- Other/Prefer not to say: r = 0.3396, R² = 0.1153, N = 8
+- Straight: ρ = 0.2467, N = 70
+- Bi/Pan: ρ = 0.1450, N = 4
+- Other/Prefer not to say: ρ = 0.4084, N = 8
 
 ## 1D. Accuracy by Familiarity
-- Low: r = 0.2441, R² = 0.0596, N = 30
-- Medium: r = 0.2740, R² = 0.0751, N = 44
-- High: r = 0.3412, R² = 0.1164, N = 10
+- Low: ρ = 0.2362, N = 30
+- Medium: ρ = 0.2728, N = 44
+- High: ρ = 0.3317, N = 10
 
 ## 2A. Individual Listener Accuracy
-- Mean r = 0.1482, Median = 0.1558
-- SD = 0.1767, Range = [-0.2759, 0.5843]
+- Mean ρ = 0.1608, Median = 0.1638
+- SD = 0.1692, Range = [-0.2228, 0.5611]
 - N listeners with valid r: 85
 
 ## 2B. Accuracy vs Listener Characteristics
-- Gender: Male M=0.161 vs Female M=0.141, t=0.49, p=0.6271
-- Orientation ANOVA: F=1.79, p=0.1735
-- Religiosity vs accuracy: r=-0.001, p=0.9903
-- Familiarity vs accuracy: r=0.177, p=0.1043
+- Gender: Male M=0.172 vs Female M=0.154, t=0.46, p=0.6439
+- Orientation ANOVA: F=0.92, p=0.4039
+- Religiosity vs accuracy: r=0.027, p=0.8105
+- Familiarity vs accuracy: r=0.154, p=0.1606
 
 ## 3A. Inter-Rater Reliability (ICC)
 - ICC(2,1) single measures = 0.2380
@@ -45,14 +45,11 @@ Missing ratings: 12 / 3060 (0.4%)
 - Mean SD across speakers: 1.368
 
 ## 3C. ICC by Demographic Group
-- Male (N=31):       ICC(2,1) = 0.2312, ICC(2,k) = 0.9031
-- Female (N=54):     ICC(2,1) = 0.2710, ICC(2,k) = 0.9525
-- Fam: Low (N=30):   ICC(2,1) = 0.1947, ICC(2,k) = 0.8789
-- Fam: Medium (N=44):ICC(2,1) = 0.2895, ICC(2,k) = 0.9472
-- Fam: High (N=10):  ICC(2,1) = 0.2677, ICC(2,k) = 0.7852
-- Female listeners are more consistent than male (ICC(2,k) 0.953 vs 0.903)
-- Low familiarity listeners show weakest agreement (ICC(2,k) 0.879); medium strongest (0.947)
-- High familiarity ICC(2,k) drop (0.785) likely reflects small N=10 attenuating the average-measures estimate
+- Male (N=31): ICC(2,1) = 0.2312, ICC(2,k) = 0.9031
+- Female (N=54): ICC(2,1) = 0.2710, ICC(2,k) = 0.9525
+- Fam: Low (N=30): ICC(2,1) = 0.1947, ICC(2,k) = 0.8789
+- Fam: Medium (N=44): ICC(2,1) = 0.2895, ICC(2,k) = 0.9472
+- Fam: High (N=10): ICC(2,1) = 0.2677, ICC(2,k) = 0.7852
 
 ## 4A. Consensus vs Accuracy
 - Correlation between SD and absolute error: r = 0.2691, p = 0.1125
@@ -60,15 +57,13 @@ Missing ratings: 12 / 3060 (0.4%)
 
 ## 4B. Mean-Based Error vs Individual-Level MAE
 - Individual-level MAE = mean(|rating_i - actual|) per speaker
-- Most speakers sit near the diagonal — the two metrics agree when rating distributions are unimodal
-- Points above diagonal: mean metric overly optimistic due to bimodal cancellation
+- Points above diagonal: mean metric was overly optimistic (bimodal cancellation)
 - Top 5 divergers (IndivMAE - MeanBased):
-  - TY28: indiv MAE = 1.268, mean-based = 0.147, diff = +1.122
-  - LS20: indiv MAE = 0.932, mean-based = 0.149, diff = +0.783
-  - PS25: indiv MAE = 1.202, mean-based = 0.458, diff = +0.744
-  - WCH30: indiv MAE = 1.548, mean-based = 0.842, diff = +0.706
-  - BO10: indiv MAE = 1.633, mean-based = 0.991, diff = +0.642
-- No clear pattern by actual orientation in divergers (mix of blue and mid-scale)
+  TY28: indiv MAE = 1.268, mean-based = 0.147, diff = +1.122
+  LS20: indiv MAE = 0.932, mean-based = 0.149, diff = +0.783
+  PS25: indiv MAE = 1.202, mean-based = 0.458, diff = +0.744
+  WCH30: indiv MAE = 1.548, mean-based = 0.842, diff = +0.706
+  BO10: indiv MAE = 1.633, mean-based = 0.991, diff = +0.642
 
 ## 5A. Speaker Readability
 (See quadrant plot for detailed speaker positions)
@@ -115,11 +110,10 @@ Missing ratings: 12 / 3060 (0.4%)
   - Cluster 3: AB8, GO16, HY17, TU27, TY28, WCL31, RU35, QI36
 
 ## 5C5. DBSCAN on 5-Component PCA (51.3% variance)
-- Kneedle eps=5.135: 3 cluster(s), 3 noise
+- Kneedle eps=5.135: 2 cluster(s), 3 noise
   - Noise: PL23, TU27, RU35
-  - Cluster 0: JC1, LQ2, MM4, HZ5, GA6, AI9, BO10, BR11, CA12, DH13, EX14, GO16, JF18, LA19, LS20, NO21, PE22, PR24, PS25, TY28, VI29, WCH30, WH32, WT33, XX34
+  - Cluster 0: JC1, LQ2, MM4, HZ5, GA6, AB8, AI9, BO10, BR11, CA12, DH13, EX14, GO16, HY17, JF18, LA19, LS20, NO21, PE22, PR24, PS25, TY28, VI29, WCH30, WCL31, WH32, WT33, XX34, QI36
   - Cluster 1: PP3, DM7, GE15, SI26
-  - Cluster 2: AB8, HY17, WCL31, QI36
 - Conservative eps=3.869: 3 cluster(s), 16 noise
   - Noise: MM4, GA6, AB8, BO10, CA12, GE15, GO16, HY17, NO21, PL23, TU27, TY28, WCH30, WCL31, RU35, QI36
   - Cluster 0: JC1, LQ2, HZ5, AI9, BR11, DH13, JF18, LS20, PE22, PR24, VI29, WH32, WT33, XX34
@@ -152,27 +146,37 @@ Missing ratings: 12 / 3060 (0.4%)
 - Negative r = speakers at PC1 extremes are rated MORE accurately
 - Positive r = speakers at PC1 extremes are rated LESS accurately
 
-## 5E. Higher PCs vs Mean Listener Rating
-- PC2 vs mean rating: r = -0.0131, p = 0.9393, R² = 0.0002 (PC2 explains 6.1% variance)
-- PC3 vs mean rating: r = 0.0257, p = 0.8817, R² = 0.0007 (PC3 explains 5.6% variance)
-- PC4 vs mean rating: r = 0.0208, p = 0.9041, R² = 0.0004 (PC4 explains 4.6% variance)
-- PC5 vs mean rating: r = 0.0040, p = 0.9816, R² = 0.0000 (PC5 explains 4.1% variance)
-- All r ~= 0: PC2-PC5 are orthogonal to consensus perceived gayness (PC1)
-- PC2+ capture structurally different listener variation, not shared perception signal
+## 5E1. PC2 vs Mean Listener Rating
+- Pearson r = -0.0131, p = 0.9393
+- R² = 0.0002
+- Variance explained by PC2: 6.1%
+
+## 5E2. PC3 vs Mean Listener Rating
+- Pearson r = 0.0257, p = 0.8817
+- R² = 0.0007
+- Variance explained by PC3: 5.6%
+
+## 5E3. PC4 vs Mean Listener Rating
+- Pearson r = 0.0208, p = 0.9041
+- R² = 0.0004
+- Variance explained by PC4: 4.6%
+
+## 5E4. PC5 vs Mean Listener Rating
+- Pearson r = 0.0040, p = 0.9816
+- R² = 0.0000
+- Variance explained by PC5: 4.1%
 
 ## 5F. Speaker Rating SD vs |PC2|
-- Pearson r = 0.3559, p = 0.0332, R² = 0.1266
-- Significant positive relationship: high-SD speakers tend to have larger |PC2| scores
-- Speakers driving this: HY17, AB8, WCL31, MM4, RU35 (high disagreement + high |PC2|)
-- Interpretation: PC2 partly captures structured listener disagreement, not pure noise
-- But R² = 0.13 means most of PC2 variance is NOT explained by disagreement magnitude alone
+- Pearson r = 0.3559, p = 0.0332
+- R² = 0.1266
+- r ~= 0  => PC2 is NOT simply capturing disagreement magnitude
+- r > 0   => high-SD speakers sit further from the PC2 origin
 
 ## 5G. Rating SD vs Non-Consensus PCA Distance (PC2-PC5)
-- Pearson r = 0.7788, p = 0.0000, R² = 0.6066
-- Non-consensus distance = sqrt(PC2^2 + PC3^2 + PC4^2 + PC5^2); PC2-PC5 capture 20.3% variance
-- Much stronger than 5F (|PC2| alone: r=0.356) — pooling across PC2-PC5 reveals the full signal
-- Interpretation: ~61% of variance in listener disagreement is explained by how far speakers scatter in non-consensus PCA space
-- Speakers driving the high end: RU35, BO10, TU27, HY17, PL23 — all high-SD and high non-consensus distance
+- Pearson r = 0.7788, p = 0.0000
+- R2 = 0.6066
+- Non-consensus distance = sqrt(PC2^2 + PC3^2 + PC4^2 + PC5^2)
+- Variance captured by PC2-PC5: 20.3%
 
 ## 6A. Listener Response Bias
 - Grand mean rating: 2.726
@@ -181,6 +185,7 @@ Missing ratings: 12 / 3060 (0.4%)
 
 ## 6B. Religiosity vs Rating Bias
 - r = 0.0398, p = 0.7212
+- More religious listeners rate speakers as gayer
 
 ## 6C. Listener Response Range
 - Mean listener SD: 1.550
@@ -212,6 +217,14 @@ Missing ratings: 12 / 3060 (0.4%)
 - Familiarity=Medium: Mean d'=0.130, N=44
 - Familiarity=High: Mean d'=0.213, N=10
 
+## 9A. Per-Speaker Mean-Based Error (sorted)
+- Range: 0.147 (TY28) to 3.047 (XX34)
+- Mean across speakers: 1.324
+
+## 9B. Per-Speaker Individual-Level MAE (sorted)
+- Range: 0.619 (SI26) to 3.035 (XX34)
+- Mean across speakers: 1.571
+
 ## Key Findings - Speaker Rankings
 
 ### Top 5 Most Accurately Perceived Speakers (lowest absolute error)
@@ -227,20 +240,6 @@ Missing ratings: 12 / 3060 (0.4%)
 - QI36: error = 2.419, actual = 5.0, predicted = 2.58
 - PP3: error = 2.300, actual = 2.2, predicted = 4.50
 - PL23: error = 2.240, actual = 1.4, predicted = 3.64
-
-### Top 5 Most Accurately Perceived Speakers (lowest individual-level MAE)
-- SI26: indiv MAE = 0.619, actual = 5.0
-- BR11: indiv MAE = 0.762, actual = 1.0
-- DM7:  indiv MAE = 0.840, actual = 4.6
-- PE22: indiv MAE = 0.918, actual = 1.0
-- LS20: indiv MAE = 0.932, actual = 1.8
-
-### Top 5 Least Accurately Perceived Speakers (highest individual-level MAE)
-- XX34:  indiv MAE = 3.035, actual = 5.0
-- WCL31: indiv MAE = 2.518, actual = 5.0
-- PP3:   indiv MAE = 2.421, actual = 2.2
-- QI36:  indiv MAE = 2.400, actual = 5.0
-- PL23:  indiv MAE = 2.393, actual = 1.4
 
 ### Overall Metrics
 - Mean Absolute Error (MAE): 1.3236

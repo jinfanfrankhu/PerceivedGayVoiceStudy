@@ -79,7 +79,7 @@ def load_data():
         lr = ratings.iloc[i]
         m = lr.notna() & actual_scores.notna()
         if m.sum() >= 5:
-            r_i, _ = stats.pearsonr(lr[m], actual_scores[m])
+            r_i, _ = stats.spearmanr(lr[m], actual_scores[m])
             indiv_r.append(r_i)
         else:
             indiv_r.append(np.nan)
@@ -87,7 +87,7 @@ def load_data():
 
     # Overall r (used as fallback when 1A is skipped but 1E is run)
     mask = actual_scores.notna() & avg_predicted.notna()
-    r_val_overall, _ = stats.pearsonr(actual_scores[mask], avg_predicted[mask])
+    r_val_overall, _ = stats.spearmanr(actual_scores[mask], avg_predicted[mask])
 
     print(f"Loaded {ratings.shape[0]} listeners x {ratings.shape[1]} speakers")
     print(f"Missing ratings: {ratings.isna().sum().sum()} / {ratings.size}")
@@ -113,17 +113,17 @@ def load_data():
 # ============================================================
 
 def group_accuracy(ratings, actual_scores, listener_mask):
-    """Avg predicted per speaker for a listener subset; returns r, R², n, group_avg."""
+    """Avg predicted per speaker for a listener subset; returns r, n, group_avg."""
     sub = ratings.loc[listener_mask]
     n = sub.shape[0]
     if n < 3:
-        return None, None, n, None
+        return None, n, None
     group_avg = sub.mean(axis=0)
     m = actual_scores.notna() & group_avg.notna()
     if m.sum() < 3:
-        return None, None, n, None
-    r, p = stats.pearsonr(actual_scores[m], group_avg[m])
-    return r, r**2, n, group_avg
+        return None, n, None
+    r, p = stats.spearmanr(actual_scores[m], group_avg[m])
+    return r, n, group_avg
 
 
 def kneedle_eps(coords, k=3):
@@ -242,16 +242,16 @@ def analysis_1a(data, log):
 
     mask = actual_scores.notna() & avg_predicted.notna()
     x_all, y_all = actual_scores[mask].values, avg_predicted[mask].values
-    r_val, p_val = stats.pearsonr(x_all, y_all)
+    r_val, p_val = stats.spearmanr(x_all, y_all)
     slope, intercept = np.polyfit(x_all, y_all, 1)
 
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.scatter(x_all, y_all, s=80, alpha=0.7, edgecolors='k', zorder=3)
     ax.plot([1, 5], [1, 5], 'k--', alpha=0.4, label='Perfect accuracy')
-    ax.plot(xs, slope * xs + intercept, 'r-', linewidth=2, label=f'Regression (R²={r_val**2:.3f})')
+    ax.plot(xs, slope * xs + intercept, 'r-', linewidth=2, label='Regression')
     ax.set_xlabel('Actual Converted Score (1-5)')
     ax.set_ylabel('Average Predicted Score (1-5)')
-    ax.set_title(f'Overall Perception Accuracy\nr = {r_val:.3f}, R² = {r_val**2:.3f}, p = {p_val:.4f}')
+    ax.set_title(f'Overall Perception Accuracy\nρ = {r_val:.3f}, p = {p_val:.4f}')
     ax.legend()
     ax.set_xlim(0.5, 5.5); ax.set_ylim(0.5, 5.5)
     plt.tight_layout()
@@ -259,7 +259,7 @@ def analysis_1a(data, log):
     plt.close()
 
     log(f"## 1A. Overall Accuracy")
-    log(f"- Pearson r = {r_val:.4f}, R² = {r_val**2:.4f}, p = {p_val:.6f}")
+    log(f"- Spearman ρ = {r_val:.4f}, p = {p_val:.6f}")
     log(f"- Regression: predicted = {slope:.3f} * actual + {intercept:.3f}\n")
     return r_val
 
@@ -277,8 +277,8 @@ def analysis_1b(data, log):
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
     for idx, (gval, glabel) in enumerate(gender_labels.items()):
         mask_g = demographics['Gender'] == gval
-        r_g, r2_g, n_g, gavg = group_accuracy(ratings, actual_scores, mask_g)
-        gender_results[glabel] = (r_g, r2_g, n_g)
+        r_g, n_g, gavg = group_accuracy(ratings, actual_scores, mask_g)
+        gender_results[glabel] = (r_g, n_g)
         ax = axes[idx]
         if gavg is not None:
             m = actual_scores.notna() & gavg.notna()
@@ -286,7 +286,7 @@ def analysis_1b(data, log):
             sl, ic = np.polyfit(actual_scores[m].values, gavg[m].values, 1)
             ax.plot(xs, sl*xs+ic, 'r-', lw=2)
             ax.plot([1,5],[1,5],'k--',alpha=0.3)
-        ax.set_title(f'{glabel} Listeners (N={n_g})\nR²={r2_g:.3f}' if r2_g else f'{glabel} (N={n_g})')
+        ax.set_title(f'{glabel} Listeners (N={n_g})\nρ={r_g:.3f}' if r_g is not None else f'{glabel} (N={n_g})')
         ax.set_xlabel('Actual Score'); ax.set_ylabel('Avg Predicted Score')
         ax.set_xlim(0.5,5.5); ax.set_ylim(0.5,5.5)
     plt.suptitle('Perception Accuracy by Listener Gender', fontsize=14, y=1.02)
@@ -295,8 +295,8 @@ def analysis_1b(data, log):
     plt.close()
 
     log("## 1B. Accuracy by Gender")
-    for g, (r, r2, n) in gender_results.items():
-        log(f"- {g}: r = {r:.4f}, R² = {r2:.4f}, N = {n}" if r else f"- {g}: insufficient data (N={n})")
+    for g, (r, n) in gender_results.items():
+        log(f"- {g}: ρ = {r:.4f}, N = {n}" if r is not None else f"- {g}: insufficient data (N={n})")
     log("")
     return gender_results
 
@@ -314,8 +314,8 @@ def analysis_1c(data, log):
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
     for idx, (oval, olabel) in enumerate(orient_labels.items()):
         mask_o = demographics['Orientation'] == oval
-        r_o, r2_o, n_o, oavg = group_accuracy(ratings, actual_scores, mask_o)
-        orient_results[olabel] = (r_o, r2_o, n_o)
+        r_o, n_o, oavg = group_accuracy(ratings, actual_scores, mask_o)
+        orient_results[olabel] = (r_o, n_o)
         ax = axes[idx]
         if oavg is not None and r_o is not None:
             m = actual_scores.notna() & oavg.notna()
@@ -323,7 +323,7 @@ def analysis_1c(data, log):
             sl, ic = np.polyfit(actual_scores[m].values, oavg[m].values, 1)
             ax.plot(xs, sl*xs+ic, 'r-', lw=2)
             ax.plot([1,5],[1,5],'k--',alpha=0.3)
-        ax.set_title(f'{olabel} (N={n_o})\nR²={r2_o:.3f}' if r2_o else f'{olabel} (N={n_o})')
+        ax.set_title(f'{olabel} (N={n_o})\nρ={r_o:.3f}' if r_o is not None else f'{olabel} (N={n_o})')
         ax.set_xlabel('Actual Score'); ax.set_ylabel('Avg Predicted Score')
         ax.set_xlim(0.5,5.5); ax.set_ylim(0.5,5.5)
     plt.suptitle('Perception Accuracy by Listener Sexual Orientation', fontsize=14, y=1.02)
@@ -332,12 +332,12 @@ def analysis_1c(data, log):
     plt.close()
 
     log("## 1C. Accuracy by Orientation")
-    for o, (r, r2, n) in orient_results.items():
-        log(f"- {o}: r = {r:.4f}, R² = {r2:.4f}, N = {n}" if r else f"- {o}: insufficient data (N={n})")
+    for o, (r, n) in orient_results.items():
+        log(f"- {o}: ρ = {r:.4f}, N = {n}" if r is not None else f"- {o}: insufficient data (N={n})")
     mask_other = demographics['Orientation'].isin([4, 5])
-    r_oth, r2_oth, n_oth, _ = group_accuracy(ratings, actual_scores, mask_other)
-    orient_results["Other/PNS"] = (r_oth, r2_oth, n_oth)
-    log(f"- Other/Prefer not to say: r = {r_oth:.4f}, R² = {r2_oth:.4f}, N = {n_oth}" if r_oth else f"- Other/PNS: insufficient data (N={n_oth})")
+    r_oth, n_oth, _ = group_accuracy(ratings, actual_scores, mask_other)
+    orient_results["Other/PNS"] = (r_oth, n_oth)
+    log(f"- Other/Prefer not to say: ρ = {r_oth:.4f}, N = {n_oth}" if r_oth is not None else f"- Other/PNS: insufficient data (N={n_oth})")
     log("")
     return orient_results
 
@@ -354,8 +354,8 @@ def analysis_1d(data, log):
     fig, axes = plt.subplots(1, 3, figsize=(18, 6))
     for idx, flabel in enumerate(['Low', 'Medium', 'High']):
         mask_f = fam == flabel
-        r_f, r2_f, n_f, favg = group_accuracy(ratings, actual_scores, mask_f)
-        fam_results[flabel] = (r_f, r2_f, n_f)
+        r_f, n_f, favg = group_accuracy(ratings, actual_scores, mask_f)
+        fam_results[flabel] = (r_f, n_f)
         ax = axes[idx]
         if favg is not None and r_f is not None:
             m = actual_scores.notna() & favg.notna()
@@ -363,7 +363,7 @@ def analysis_1d(data, log):
             sl, ic = np.polyfit(actual_scores[m].values, favg[m].values, 1)
             ax.plot(xs, sl*xs+ic, 'r-', lw=2)
             ax.plot([1,5],[1,5],'k--',alpha=0.3)
-        ax.set_title(f'{flabel} Familiarity (N={n_f})\nR²={r2_f:.3f}' if r2_f else f'{flabel} (N={n_f})')
+        ax.set_title(f'{flabel} Familiarity (N={n_f})\nρ={r_f:.3f}' if r_f is not None else f'{flabel} (N={n_f})')
         ax.set_xlabel('Actual Score'); ax.set_ylabel('Avg Predicted Score')
         ax.set_xlim(0.5,5.5); ax.set_ylim(0.5,5.5)
     plt.suptitle('Perception Accuracy by Familiarity with Gay Men', fontsize=14, y=1.02)
@@ -372,8 +372,8 @@ def analysis_1d(data, log):
     plt.close()
 
     log("## 1D. Accuracy by Familiarity")
-    for fl, (r, r2, n) in fam_results.items():
-        log(f"- {fl}: r = {r:.4f}, R² = {r2:.4f}, N = {n}" if r else f"- {fl}: insufficient data (N={n})")
+    for fl, (r, n) in fam_results.items():
+        log(f"- {fl}: ρ = {r:.4f}, N = {n}" if r is not None else f"- {fl}: insufficient data (N={n})")
     log("")
     return fam_results
 
@@ -384,9 +384,9 @@ def analysis_1e(data, log, r_val, gender_results, orient_results, fam_results):
     OUTPUT_DIR = data['OUTPUT_DIR']
 
     all_groups = {'Overall': (r_val, ratings.shape[0])}
-    all_groups.update({k: (v[0], v[2]) for k, v in gender_results.items()})
-    all_groups.update({k: (v[0], v[2]) for k, v in orient_results.items()})
-    all_groups.update({f'Fam: {k}': (v[0], v[2]) for k, v in fam_results.items()})
+    all_groups.update({k: (v[0], v[1]) for k, v in gender_results.items()})
+    all_groups.update({k: (v[0], v[1]) for k, v in orient_results.items()})
+    all_groups.update({f'Fam: {k}': (v[0], v[1]) for k, v in fam_results.items()})
 
     labels = [k for k in all_groups if all_groups[k][0] is not None]
     r_vals = [all_groups[k][0] for k in labels]
@@ -397,8 +397,8 @@ def analysis_1e(data, log, r_val, gender_results, orient_results, fam_results):
     ax.bar(range(len(labels)), r_vals, color=colors, edgecolor='k', alpha=0.8)
     ax.set_xticks(range(len(labels)))
     ax.set_xticklabels([f'{l}\n(N={n_vals[i]})' for i, l in enumerate(labels)], rotation=30, ha='right')
-    ax.set_ylabel('Pearson r')
-    ax.set_title('Pearson r (Perception Accuracy) Across Listener Groups')
+    ax.set_ylabel("Spearman's ρ")
+    ax.set_title("Spearman's ρ (Perception Accuracy) Across Listener Groups")
     ax.axhline(0, color='k', lw=0.5)
     for i, v in enumerate(r_vals):
         ax.text(i, v + 0.01, f'{v:.3f}', ha='center', fontsize=9)
@@ -418,7 +418,7 @@ def analysis_2a(data, log):
     ax.hist(valid_r, bins=20, edgecolor='k', alpha=0.7, color='steelblue')
     ax.axvline(valid_r.mean(), color='red', lw=2, ls='--', label=f'Mean = {valid_r.mean():.3f}')
     ax.axvline(valid_r.median(), color='orange', lw=2, ls='-.', label=f'Median = {valid_r.median():.3f}')
-    ax.set_xlabel('Individual Pearson r (with actual scores)')
+    ax.set_xlabel("Individual Spearman's ρ (with actual scores)")
     ax.set_ylabel('Count')
     ax.set_title('Distribution of Individual Listener Accuracy')
     ax.legend()
@@ -427,7 +427,7 @@ def analysis_2a(data, log):
     plt.close()
 
     log("## 2A. Individual Listener Accuracy")
-    log(f"- Mean r = {valid_r.mean():.4f}, Median = {valid_r.median():.4f}")
+    log(f"- Mean ρ = {valid_r.mean():.4f}, Median = {valid_r.median():.4f}")
     log(f"- SD = {valid_r.std():.4f}, Range = [{valid_r.min():.4f}, {valid_r.max():.4f}]")
     log(f"- N listeners with valid r: {valid_r.shape[0]}\n")
 
