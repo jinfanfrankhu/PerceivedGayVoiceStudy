@@ -16,6 +16,8 @@ respondents = df.iloc[2:87]
 actual_scores = pd.to_numeric(df.iloc[88, 1:37], errors="coerce").dropna()
 
 fig, ax = plt.subplots(figsize=(8, 5))
+ax.set_axisbelow(True)
+ax.grid(axis="y", linestyle="--", alpha=0.6)
 ax.hist(actual_scores, bins=[x - 0.5 for x in range(12)],
         edgecolor="black", color="steelblue", alpha=0.8)
 ax.set_title("Distribution of Speakers' Actual Sexuality Scores")
@@ -49,6 +51,8 @@ for demo in demographics:
     values = pd.to_numeric(respondents.iloc[:, demo["col"]], errors="coerce").dropna()
 
     fig, ax = plt.subplots(figsize=(8, 5))
+    ax.set_axisbelow(True)
+    ax.grid(axis="y", linestyle="--", alpha=0.6)
 
     if demo["labels"]:
         order = sorted(demo["labels"])
