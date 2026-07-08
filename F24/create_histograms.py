@@ -2,9 +2,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from pathlib import Path
+
+script_dir = Path(__file__).resolve().parent
 
 # Read the CSV
-df = pd.read_csv(r"C:\Users\jinfa\Desktop\GayStudy\F24\Results.csv", header=None)
+df = pd.read_csv(script_dir / "Results.csv", header=None)
 
 # Speaker names are in row 0, columns 1-36
 speakers = [str(s).strip() for s in df.iloc[0, 1:37]]
@@ -12,13 +15,13 @@ speakers = [str(s).strip() for s in df.iloc[0, 1:37]]
 # Listener ratings are in rows 2-87 (0-indexed), columns 1-36
 ratings_df = df.iloc[2:88, 1:37]
 
-# Converted self-reported scores (row 90, 0-indexed) - on the same 1-5 scale as listener ratings
-converted_scores = df.iloc[90, 1:37]
+# Converted self-reported scores (row 89, 0-indexed) - on the same 1-5 scale as listener ratings
+converted_scores = df.iloc[89, 1:37]
 
-# Actual self-reported scores (row 89, 0-indexed) - on 0-10 scale
-actual_scores = df.iloc[89, 1:37]
+# Actual self-reported scores (row 88, 0-indexed) - on 0-10 scale
+actual_scores = df.iloc[88, 1:37]
 
-output_dir = r"C:\Users\jinfa\Desktop\GayStudy\F24\Dataplots\Histograms"
+output_dir = script_dir / "Dataplots" / "JudgementHistograms"
 
 for i, speaker in enumerate(speakers):
     col_ratings = pd.to_numeric(ratings_df.iloc[:, i], errors="coerce").dropna()

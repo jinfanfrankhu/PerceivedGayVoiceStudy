@@ -5,6 +5,7 @@ Analyzes relationship between perceived and actual sexual orientation from voice
 
 import os
 import warnings
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -24,8 +25,9 @@ warnings.filterwarnings('ignore')
 sns.set_style('whitegrid')
 plt.rcParams.update({'font.size': 12, 'axes.titlesize': 14, 'figure.dpi': 300})
 
-INPUT_CSV  = r"C:\Users\jinfa\Desktop\GayStudy\F24\Results.csv"
-OUTPUT_DIR = r"C:\Users\jinfa\Desktop\GayStudy\F24\Dataplots"
+script_dir = Path(__file__).resolve().parent
+INPUT_CSV  = script_dir / "Results.csv"
+OUTPUT_DIR = script_dir / "Dataplots"
 
 
 # ============================================================
