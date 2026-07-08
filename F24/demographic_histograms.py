@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 script_dir = Path(__file__).resolve().parent
-data_file = script_dir / "F24" / "Results.csv"
-output_dir = script_dir / "F24" / "Dataplots" / "DemographicHistograms"
+data_file = script_dir / "Results.csv"
+output_dir = script_dir / "Dataplots" / "DemographicHistograms"
 output_dir.mkdir(parents=True, exist_ok=True)
 
 df = pd.read_csv(data_file, header=None)
