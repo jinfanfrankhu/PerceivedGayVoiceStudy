@@ -49,10 +49,11 @@ Scripts resolve all paths relative to themselves, so they work from any director
 
 ## Data-integrity notes
 
-- **Names are canonicalized to the Master Spreadsheet.** Three pseudonyms were typed
-  differently in the listener platform; `build_dataset.py` fixes them via an explicit
-  rename map (see `RENAME_FILE_IDS`). The map lives in code, not as a hand-edit,
-  because the typos are in the platform DB and would return on any re-export.
+- **Names are canonicalized to the Master Spreadsheet.** Three pseudonyms were
+  originally typed differently in the listener platform. Since this is the final
+  ratings export, they were corrected directly in `data/raw/ratings.csv`.
+  `build_dataset.py`'s `check_join()` still fails loudly if any rated speaker ever
+  fails to match Master.
 - Every speaker has exactly 69 ratings (balanced batching).
 - ~5 listeners report birth year 1920 (likely a default/bogus entry) — filter before
   modelling listener age.

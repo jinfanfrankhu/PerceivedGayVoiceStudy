@@ -11,11 +11,11 @@ Produces three tidy tables in data/processed/:
 
 Canonicalization note
 ---------------------
-The Master Spreadsheet is treated as the source of truth for names. Three
-pseudonyms were typed differently in the listener platform, so a naive join on
-name silently drops them. These typos live in the platform DB, so any re-export
-of ratings.csv reproduces them -- which is exactly why the fix lives here as an
-explicit, idempotent rename map rather than a one-time hand-edit of the CSV.
+The Master Spreadsheet is the source of truth for speaker names. Three pseudonyms
+were originally typed differently in the listener platform; since no further
+exports are expected, those were corrected directly in data/raw/ratings.csv. The
+check_join() guard below still fails loudly if any rated speaker fails to match
+Master, in case a name ever drifts again.
 """
 import sys
 import numpy as np
@@ -31,13 +31,6 @@ from common import (MASTER_CSV, RATINGS_CSV, FEATURES_CSV,
 # camps directly instead. CAMP_MIN is the reporting cutoff for "substantial".
 CAMP_MIN = 0.25
 
-# file_id in ratings.csv  ->  canonical file_id (Master pseudonym, underscored)
-RENAME_FILE_IDS = {
-    'Kamal_Chandan_Obterre': 'Kamal_Chandani_Obterre',   # Chandan -> Chandani
-    'Shannon_Steven_Palley': 'Shannon_Samuel_Palley',    # Steven  -> Samuel
-    'James_Landon_Gallway':  'James_Landon_Galway',       # Gallway -> Galway
-}
-
 META_COLS = [
     'Kinsey Scale (1-5)', 'Self-Described Sexual Orientation', 'Gender ID',
     'Race', 'Birth Location', 'Upbringing Location', 'Year of Birth',
@@ -52,9 +45,7 @@ def load_master():
 
 
 def load_ratings():
-    r = pd.read_csv(RATINGS_CSV)
-    r['file_id'] = r['file_id'].replace(RENAME_FILE_IDS)
-    return r
+    return pd.read_csv(RATINGS_CSV)
 
 
 def build_crosswalk(master):
