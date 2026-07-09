@@ -41,6 +41,9 @@ META_COLS = [
 def load_master():
     m = pd.read_csv(MASTER_CSV)
     m['file_id'] = m['Pseudonym'].str.strip().str.replace(' ', '_', regex=False)
+    # Derived flag: the 2 transmen. Actual-orientation (Kinsey) analyses get a
+    # sensitivity re-run excluding them; feature<->perceived is unaffected.
+    m['is_transman'] = m['Gender ID'].str.strip().str.lower().eq('transman')
     return m
 
 
@@ -110,7 +113,7 @@ def main():
     print(f'  wrote {CROSSWALK_CSV.name}  ({len(crosswalk)} speakers)')
 
     # --- speakers.csv : one row per speaker ---------------------------------
-    meta = master[['file_id', 'Initials'] + META_COLS].rename(
+    meta = master[['file_id', 'Initials', 'is_transman'] + META_COLS].rename(
         columns={'Initials': 'initials'})
     perc = perceived_aggregates(ratings)
 
