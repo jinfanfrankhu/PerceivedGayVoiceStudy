@@ -1,0 +1,18 @@
+Next Steps (prioritized)
+Quick wins (no new data needed):
+
+Loudness-normalize all audio before openSMILE — run RMS or LUFS normalization as a preprocessing step. Cleaner than augmentation; eliminates the confound outright.
+Use stratified k-fold CV instead of a single train/test split. With n=50, one split gives very noisy accuracy estimates. 5- or 10-fold would give you error bars.
+Exclude or flag the two transmen and re-run — see if results change. Good sensitivity analysis.
+Try regression on the ordinal task — SVC for 5-class ordinal is fighting the structure of the data. A ridge/SVR regressor on the 1–5 Kinsey scale might outperform the 5-class classifier.
+Data augmentation (if you want more samples):
+
+Add Gaussian noise to audio — simulates recording variation, safe
+Time-stretch ±5–10% — simulates speaking rate variation (but be careful: VoicedSegmentsPerSec is a top feature, so aggressive stretching would corrupt that signal)
+Do NOT pitch-shift — pitch is your primary signal; shifting it would create fake gay/straight labels
+Loudness jitter — yes, varying gain ±6dB is fine and simulates mic distance, but given the feature rankings it won't change much
+
+Bigger picture:
+
+Control for native language — even just a binary native_english covariate could help
+The binary task (58%) is the most defensible result; lean on it
