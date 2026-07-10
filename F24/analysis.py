@@ -645,7 +645,7 @@ def analysis_3c(data, log):
     ax.set_ylabel('ICC Value')
     ax.set_ylim(0, 1.1)
     ax.axhline(0, color='k', lw=0.5)
-    ax.set_title('3C: Inter-Rater Reliability by Demographic Group')
+    ax.set_title('Inter-Rater Reliability by Demographic Group')
     ax.legend()
     plt.tight_layout()
     plt.savefig(os.path.join(OUTPUT_DIR, '3C_icc_by_demographics.png'))
@@ -1132,7 +1132,7 @@ def analysis_5d(data, log, cl):
                     fontsize=7.5, xytext=(5,3), textcoords='offset points')
     ax.set_xlabel('Actual Sexuality (1=Straight, 5=Gay)')
     ax.set_ylabel(f'PC1 Score ({pc1_var:.1f}% variance)')
-    ax.set_title(f'5D1: PC1 (Perceived Gayness Axis) vs Actual Orientation\n'
+    ax.set_title(f'PC1 (Perceived Gayness Axis) vs Actual Orientation\n'
                  f'r = {r_5d1:.3f}, p = {p_5d1:.4f}')
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1155,7 +1155,7 @@ def analysis_5d(data, log, cl):
                     fontsize=7.5, xytext=(5,3), textcoords='offset points')
     ax.set_xlabel('Mean Listener Rating (1=Straight, 5=Gay)')
     ax.set_ylabel(f'PC1 Score ({pc1_var:.1f}% variance)')
-    ax.set_title(f'5D2: PC1 vs Mean Listener Rating\nr = {r_5d2:.3f}, p = {p_5d2:.4f}')
+    ax.set_title(f'PC1 vs Mean Listener Rating\nr = {r_5d2:.3f}, p = {p_5d2:.4f}')
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig(os.path.join(OUTPUT_DIR, '5D2_pc1_vs_mean_rating.png'))
@@ -1180,7 +1180,7 @@ def analysis_5d(data, log, cl):
     plt.colorbar(sc, ax=ax, label='Actual Sexuality (1=Straight, 5=Gay)')
     ax.set_xlabel(f'|PC1| — Distance from Perceptual Center ({pc1_var:.1f}% var)')
     ax.set_ylabel('Absolute Error (|mean rating − actual|)')
-    ax.set_title(f'5D3: Perceptual Extremity (|PC1|) vs Rating Accuracy\n'
+    ax.set_title(f'Perceptual Extremity (|PC1|) vs Rating Accuracy\n'
                  f'r = {r_5d3:.3f}, p = {p_5d3:.4f}')
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
@@ -1700,7 +1700,7 @@ def analysis_5g(data, log, cl):
                     fontsize=7.5, xytext=(5, 3), textcoords='offset points')
     ax.set_xlabel('SD of Listener Ratings (low = high agreement)')
     ax.set_ylabel(f'Non-Consensus Distance sqrt(PC2^2+...+PC5^2) ({var_pct:.1f}% var)')
-    ax.set_title(f'5G: Rating Disagreement vs Non-Consensus PCA Distance\nr = {r:.3f}, p = {p:.4f}')
+    ax.set_title(f'Rating Disagreement vs Non-Consensus PCA Distance\nr = {r:.3f}, p = {p:.4f}')
     ax.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.savefig(os.path.join(OUTPUT_DIR, '5G_sd_vs_nonconsensus_dist.png'))
