@@ -9,6 +9,55 @@ Status legend: **SETTLED** (in use) · **PENDING** (awaiting data/decision) ·
 
 ---
 
+## D. Pre-registration — confirmatory segmental hypotheses (`04_segmental.py`)
+
+Directions committed **before** testing (from the lit review), so `04` uses ONE-TAILED
+tests in the predicted direction over a small family — the power fix for 02's null.
+Key insight: the literature splits into **production** studies (what gay men actually
+produce → predicts vs `true_kinsey`) and **perception** studies (what listeners respond
+to → predicts vs `perceived_mean`). They AGREE for sibilants/vowels but DIVERGE for
+pitch/breathiness — testing that divergence is the paper's core claim.
+
+Sign = predicted correlation direction (higher target = gayer / higher Kinsey).
+Tested vs BOTH targets, BH-FDR (q=0.10) within each target's family separately; effect
+size + bootstrap CI lead (decision A3); sensitivity re-run excluding transmen.
+
+**Group A — production & perception agree (same sign both targets):**
+| Feature | Perceived | Actual | Source |
+|---|---|---|---|
+| S_cog (/s/ fronting) | + | + | Munson 2006; Rogers & Smyth 2003 |
+| S_skew | − | − | Munson 2006 (top differentiator) |
+| S_dur | + | + | Rogers & Smyth 2003; Smyth 2003 |
+| vowel_space_area | + | + | Pierrehumbert 2004; Rendall 2007 |
+| front_f2 | + | + | Munson 2006; Rendall 2007 |
+| diphthong dynamism (mean z-trajlen) | + | + | Panfili 2011 |
+| diphthong duration | + | + | Panfili 2011 |
+
+**Group B — production & perception DIVERGE (opposite/null — the payoff):**
+| Feature | Perceived | Actual | Source |
+|---|---|---|---|
+| F0 range (pctlrange0-2) | + | − | Gaudio 1994; Rogers & Smyth 2003; Holmes 2024 |
+| F0 stddevNorm (dynamism) | + | − | Gaudio 1994; Holmes 2024 |
+| F0 mean | + | − | Holmes 2024 (gay men lower pitch) |
+| v_cpps | − | + | Holmes 2024 (gay men *less* breathy) |
+| HNR | − | + | Holmes 2024 |
+| v_h1h2 | + | − | Holmes 2024 |
+
+- **S_skew sign caveat:** the 750 Hz high-pass (C13) shifts absolute skew positive, but
+  the *correlation direction* (more-fronted /s/ → more-negative skew) is preserved, so −
+  stands.
+- **diphthong duration caveat:** partly confounded with speech rate (Pierrehumbert 2004
+  argued vowel expansion reflects precision, not slow rate); flagged, revisit with a rate
+  covariate if it's the lone Group A hit.
+- **Group B actual = directional per Holmes production study**, not merely "null" — Holmes
+  found gay men lower-pitched and less-breathy, so we pre-register those signs; a true null
+  simply won't reject.
+- Individual low-front vowel formants (AE/EH F1) held EXPLORATORY (two-tailed) — the lit
+  flags them as differentiators but doesn't pin a direction.
+- **Status:** SETTLED (pre-registered 2026-07-10).
+
+---
+
 ## A. Statistics & inference
 
 ### A1. Spearman as the default correlation
@@ -174,11 +223,54 @@ Status legend: **SETTLED** (in use) · **PENDING** (awaiting data/decision) ·
   6), so N=5 never touches the backbone. It cleanly drops the genuinely rare phones
   where a per-speaker value would be alignment jitter (TH=3, ER=3, UH=2, CH=3 → 0/50
   at ≥5). Net measurable inventory: 12 stressed vowels (AA AE AH AO AW AY EH EY IH IY
-  OW UW) + 7 fricatives (S SH Z F V DH HH; TH dropped, HH borderline at 46/50). Stops
-  plentiful but deferred (C9).
+  OW UW) + 7 fricatives (S SH Z F V DH HH; TH dropped). HH retained despite being
+  borderline (46/50 clear 5; the other 4 get NaN) for its breathiness relevance —
+  see C11. Stops plentiful but deferred (C9).
 - **Alternatives:** N=3 (keeps TH/ER but those are too sparse to trust); N=10 (would
   cost IY/SH/AW/OW targets — too aggressive).
 - **Status:** SETTLED (N=5).
+
+### C11. Breathiness voice-quality block on stressed vowels
+- **Decision:** Add CPPS (smoothed cepstral peak prominence; primary) and H1–H2
+  (secondary) measured on stressed vowels, as a confirmatory breathiness target.
+  Predicted direction: breathier → perceived gayer, i.e. **lower CPPS** and **higher
+  H1–H2**.
+- **Rationale:** Breathiness is a documented correlate of perceived male sexuality,
+  but it is a *voice-quality* property of voiced sounds — so it's measured on vowels
+  via cepstral/spectral-tilt cues, NOT via the /h/ (HH) segment. The two are distinct;
+  keeping HH (C8) captures the segment, this captures the phonation. CPPS is the robust
+  modern standard (aperiodic voice → lower CPPS); H1–H2 is the classic harmonic measure
+  (breathy voice → dominant fundamental → higher H1–H2). Cheap, since we already open
+  every stressed-vowel interval.
+- **Status:** SETTLED.
+
+### C13. High-pass filter before sibilant spectral moments (750 Hz)
+- **Decision:** High-pass the fricative (pass-Hann band, 750 Hz–Nyquist) before
+  computing spectral moments.
+- **Rationale:** Raw fricative spectra are contaminated by low-frequency energy (room
+  rumble, voicing bleed) that drags COG down and puts the spectral peak near DC — a
+  probe gave a nonsensical peak of 32 Hz and COG ~3.5 kHz. High-passing at 750 Hz (well
+  below /s/ frication energy, which starts ~2–3 kHz) restores plausible values
+  (COG ~5.1 kHz, peak ~3.9 kHz). The cutoff is not sensitive (500/750/1000 Hz give
+  COG within ~80 Hz); 750 Hz is a common literature choice.
+- **Consequence for skew:** removing the low-frequency tail flips spectral *skew* to
+  positive (our /s/ skew mean ≈ +1.0), opposite the classic negative-skew literature
+  computed on the full band. Skew stays a valid *within-study* measure (all speakers
+  filtered identically) but its **sign is not comparable to unfiltered literature** —
+  so let the data set skew's predicted direction, and treat COG/peak as the robust
+  primary sibilant cues.
+- **Status:** SETTLED.
+
+### C12. Formant analysis settings
+- **Decision:** Burg LPC formants, max 5 formants, ceiling 5000 Hz, 25 ms window,
+  50 Hz pre-emphasis; report F1–F3.
+- **Rationale:** Standard adult-male settings; a fixed ceiling is reproducible and the
+  speakers are (nearly) all male. Per-token ceiling optimization (FastTrack-style, as
+  F24 uses) is heavier and deferred; the plausibility filters (C10-adjacent) catch gross
+  tracking errors.
+- **Caveat:** 2 transmen and any higher-pitched voices may be slightly better served by
+  a higher ceiling; revisit if the plausibility filter drops many of their tokens.
+- **Status:** SETTLED (revisit if drop rate is high).
 
 ### C9. Extract broad, analyze narrow
 - **Decision:** `extract_segmental.py` measures *all* cleanly-measurable phones
