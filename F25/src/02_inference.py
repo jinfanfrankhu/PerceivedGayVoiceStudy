@@ -130,12 +130,15 @@ def divergence_figure(table, path, title):
     ax1.plot([-lim, lim], [-lim, lim], 'k:', alpha=0.5, label='equal (y = x)')
     ax1.scatter(ra[~div], rp[~div], s=28, color='#9fb2c4', alpha=0.8,
                 label='other features')
-    ax1.scatter(ra[div], rp[div], s=48, color='#c1553b',
-                label='perceived-only (BH)')
-    # name the divergent features
-    for _, row in table[div].iterrows():
-        ax1.annotate(row['feature'][:24], (row['rho_actual'], row['rho_perceived']),
-                     fontsize=6, xytext=(4, 2), textcoords='offset points')
+    # only draw the divergent-feature series (and its legend entry) if any exist,
+    # else the legend advertises a category with no points in it.
+    if div.any():
+        ax1.scatter(ra[div], rp[div], s=48, color='#c1553b',
+                    label='perceived-only (BH)')
+        for _, row in table[div].iterrows():
+            ax1.annotate(row['feature'][:24],
+                         (row['rho_actual'], row['rho_perceived']),
+                         fontsize=6, xytext=(4, 2), textcoords='offset points')
     ax1.set_xlim(-lim, lim)
     ax1.set_ylim(-lim, lim)
     ax1.set_xlabel('Spearman rho  vs  ACTUAL (true Kinsey)')

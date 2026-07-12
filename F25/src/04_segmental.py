@@ -137,8 +137,8 @@ def forest(tab, path):
     axes[0].set_yticks(y)
     axes[0].set_yticklabels([f'{f}  [{g}]' for f, g in
                              zip(order['feature'], order['group'])], fontsize=9)
-    fig.suptitle('Confirmatory segmental hypotheses  (blue=Group A agree, '
-                 'red=Group B diverge)', fontsize=13)
+    fig.suptitle('Confirmatory segmental hypotheses  (blue=Group A, predicted same sign; '
+                 'red=Group B, predicted opposite — divergence NOT observed)', fontsize=13)
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig.savefig(path, dpi=120)
     plt.close(fig)
