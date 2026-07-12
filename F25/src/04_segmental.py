@@ -159,6 +159,10 @@ def main():
     sp = pd.read_csv(SPEAKERS_CSV)
     seg = pd.read_csv(PROC / 'segmental_speaker.csv')
     tokens = pd.read_csv(PROC / 'segmental_tokens.csv')
+    unmatched = sorted(set(seg['file_id']) - set(sp['file_id']))
+    if unmatched:
+        print(f'  WARNING: {len(unmatched)} segmental speakers do not match Master '
+              f'(silently dropped from n): {unmatched}')
     df = sp.merge(seg, on='file_id', how='left')
     df = build_derived(df, tokens)
 

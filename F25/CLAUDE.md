@@ -27,8 +27,14 @@ Acoustics (features.csv) · Actual orientation (Kinsey + self-ID) · Perceived g
 perceived-vs-actual accuracy.
 
 ## Data-integrity gotcha
-Speaker names are canonicalized to the Master Spreadsheet. Three pseudonyms were
-originally typed differently in the listener platform and were corrected directly in
-`data/raw/ratings.csv` (this is the final export). `build_dataset.py`'s `check_join()`
-guards against any future name drift. Join everything through
-`data/processed/crosswalk.csv`.
+Speaker names are canonicalized to the Master Spreadsheet. The SAME three speakers were
+originally misspelled in two independent places and both were corrected to the Master
+canonical spelling (Chandan→Chandani, Steven→Samuel, Gallway→Galway):
+  1. `data/raw/ratings.csv` (listener export) — guarded by `build_dataset.py check_join()`.
+  2. The **audio filenames** in `clean_wavs/`, and hence `mfa_corpus/` + `mfa_textgrids/`
+     folder names — which feed `file_id` in the segmental pipeline. These were renamed
+     to canonical; `04_segmental.py` / `05_segmental_explore.py` now warn loudly if any
+     segmental `file_id` fails to match Master (this bug silently ran the segmental
+     analyses on n=47 before it was caught). No MFA re-run was needed — TextGrid content
+     is filename-independent.
+Join everything through `data/processed/crosswalk.csv`.
