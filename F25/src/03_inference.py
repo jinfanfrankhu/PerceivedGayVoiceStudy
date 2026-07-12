@@ -1,4 +1,4 @@
-"""02_inference.py  --  feature <-> target inference.  Run after build_dataset.py.
+"""03_inference.py  --  feature <-> target inference.  Run after build_dataset.py.
 
 For each of the 88 acoustic features, how strongly does it relate to
   (a) ACTUAL orientation  (true Kinsey, ordinal 1-5)   and
@@ -190,7 +190,7 @@ def _summary(table, label):
 
 def main():
     ensure_dirs(FIG, TABLES, INF_DIR)
-    print('02_inference.py')
+    print('03_inference.py')
     speakers = pd.read_csv(SPEAKERS_CSV)
     feats = [c for c in pd.read_csv(FEATURES_CSV).columns if c != 'ID']
 

@@ -1,4 +1,4 @@
-"""01b_accuracy.py  --  the perceived-vs-actual "accuracy story" figures.
+"""02_accuracy.py  --  the perceived-vs-actual "accuracy story" figures.
 
 A Phase-1 companion to 01_descriptive.py, focused entirely on how well the crowd's
 perceived gayness tracks the speaker's true Kinsey. Four artifacts:
@@ -147,7 +147,7 @@ def per_speaker_error(d):
 
 def main():
     ensure_dirs(ACC_DIR, TABLES)
-    print('01b_accuracy.py')
+    print('02_accuracy.py')
     sp = pd.read_csv(SPEAKERS_CSV)
     d = sp.dropna(subset=[KINSEY, 'perceived_mean']).copy()
 

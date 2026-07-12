@@ -23,12 +23,21 @@ data/
     speakers.csv             1 row/speaker: metadata + features + perceived aggregates
     ratings_clean.csv        1 row/rating, joined to canonical ids + true labels
 src/
-  common.py            shared paths
-  extract_features.py  clean_wavs/ -> data/raw/features.csv   (upstream, rarely run)
-  build_dataset.py     raw -> processed                        (run FIRST)
-  01_descriptive.py    descriptive figures + tables
+  common.py                shared paths
+  extract_features.py      clean_wavs/ -> data/raw/features.csv   (upstream, rarely run)
+  build_dataset.py         raw -> processed                        (run FIRST)
+  01_descriptive.py        per-speaker rating histograms, listener demographics, diagnostics
+  02_accuracy.py           perceived-vs-actual accuracy story (LSRL, distributions, per-speaker error)
+  03_inference.py          eGeMAPS feature<->target Spearman + BH-FDR  (null: nothing survives FDR)
+  segmental_census.py      phone availability across speakers (sets token thresholds)
+  extract_segmental.py     MFA TextGrids + clean_wavs -> phone-level acoustic measures
+  04_segmental.py          CONFIRMATORY pre-registered segmental hypotheses (one-tailed)
+  05_segmental_explore.py  EXPLORATORY segmental sweep (hypothesis-generating volcano)
+  # 06_divergence.py       (planned) Steiger / bootstrap of the perceived-vs-actual rho gap
+  # classifier             (FINAL step) honest LOOCV + permutation-null prediction
 outputs/
   figures/  rating_histograms/  listener_demographics/  diagnostics/
+            accuracy/  inference/  segmental/
   tables/
 archive/          superseded exploratory work (old experiments/, classifier_logs/, etc.)
 clean_wavs/       source audio (gitignored)
@@ -41,9 +50,16 @@ Requires Python 3.13 with: pandas, numpy, scipy, scikit-learn, matplotlib,
 seaborn, diptest, opensmile (only for feature extraction).
 
 ```
-py -3.13 src/build_dataset.py     # rebuild processed tables from raw
-py -3.13 src/01_descriptive.py    # regenerate all descriptive figures/tables
+py -3.13 src/build_dataset.py         # rebuild processed tables from raw
+py -3.13 src/01_descriptive.py        # per-speaker histograms, demographics, diagnostics
+py -3.13 src/02_accuracy.py           # perceived-vs-actual accuracy figures
+py -3.13 src/03_inference.py          # eGeMAPS correlations + BH-FDR
+py -3.13 src/04_segmental.py          # confirmatory segmental hypotheses
+py -3.13 src/05_segmental_explore.py  # exploratory segmental sweep
 ```
+
+The segmental scripts (`04`/`05`) read `data/processed/segmental_*.csv`, produced by
+`extract_segmental.py`, which in turn needs the MFA TextGrids in `mfa_textgrids/`.
 
 Scripts resolve all paths relative to themselves, so they work from any directory.
 
@@ -68,5 +84,8 @@ Scripts resolve all paths relative to themselves, so they work from any director
   features fail a Shapiro–Wilk normality test — see `tables/feature_normality.csv`),
   and report Pearson alongside where it matters.
 - Multiple-comparison control (Benjamini–Hochberg FDR) applies to the feature-level
-  inference step (planned `02_inference.py`), not yet run.
+  inference (`03_inference.py`, done — **no eGeMAPS feature survives FDR** for either
+  target) and to the segmental analyses (`04_segmental.py` / `05_segmental_explore.py`).
+  The segmental branch is where signal appears: /s/ fronting (S_cog) is the confirmed
+  perceived cue; the exploratory sweep adds sibilant + /aɪ/ fronting candidates.
 ```
