@@ -33,11 +33,11 @@ src/
   extract_segmental.py     MFA TextGrids + clean_wavs -> phone-level acoustic measures
   04_segmental.py          CONFIRMATORY pre-registered segmental hypotheses (one-tailed)
   05_segmental_explore.py  EXPLORATORY segmental sweep (hypothesis-generating volcano)
-  # 06_divergence.py       (planned) Steiger / bootstrap of the perceived-vs-actual rho gap
-  # classifier             (FINAL step) honest LOOCV + permutation-null prediction
+  06_divergence.py         Steiger / bootstrap of the perceived-vs-actual rho gap (0/13 diverge)
+  07_ridge.py              FINAL step: honest LOOCV Ridge + permutation-null multivariate prediction
 outputs/
   figures/  rating_histograms/  listener_demographics/  diagnostics/
-            accuracy/  inference/  segmental/
+            accuracy/  inference/  segmental/  prediction/
   tables/
 archive/          superseded exploratory work (old experiments/, classifier_logs/, etc.)
 clean_wavs/       source audio (gitignored)
@@ -56,6 +56,8 @@ py -3.13 src/02_accuracy.py           # perceived-vs-actual accuracy figures
 py -3.13 src/03_inference.py          # eGeMAPS correlations + BH-FDR
 py -3.13 src/04_segmental.py          # confirmatory segmental hypotheses
 py -3.13 src/05_segmental_explore.py  # exploratory segmental sweep
+py -3.13 src/06_divergence.py         # rigorous perceived-vs-actual rho-gap test
+py -3.13 src/07_ridge.py              # FINAL: LOOCV Ridge prediction + permutation null
 ```
 
 The segmental scripts (`04`/`05`) read `data/processed/segmental_*.csv`, produced by
