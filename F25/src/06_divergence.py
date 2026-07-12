@@ -97,6 +97,27 @@ def _spear(a, b):
     return (ra * rb).sum() / d if d else np.nan
 
 
+def _rank_rows(X):
+    """Average ranks (scipy 'average' method) along axis=1, for every row at once.
+
+    For value x_i: rank = (#strictly-less) + (#equal + 1)/2  -- the mean of the ordinal
+    ranks its tie-group would occupy. Identical to rankdata() per row, but vectorized
+    over the whole (N_BOOT, n) bootstrap matrix, replacing 5000 Python rankdata calls."""
+    less = (X[:, :, None] > X[:, None, :]).sum(axis=2)        # (B, n) strictly-less count
+    equal = (X[:, :, None] == X[:, None, :]).sum(axis=2)      # (B, n) equal count (incl self)
+    return less + (equal + 1) / 2.0
+
+
+def _pearson_rows(A, B):
+    """Row-wise Pearson correlation of two (B, n) rank matrices -> (B,) Spearman rhos."""
+    A = A - A.mean(axis=1, keepdims=True)
+    B = B - B.mean(axis=1, keepdims=True)
+    num = (A * B).sum(axis=1)
+    den = np.sqrt((A * A).sum(axis=1) * (B * B).sum(axis=1))
+    with np.errstate(invalid='ignore', divide='ignore'):
+        return np.where(den > 0, num / den, np.nan)
+
+
 def williams_t(r_jk, r_jh, r_kh, n):
     """Williams (1959) test that two dependent correlations sharing variable j are equal.
     j = feature, k = perceived, h = actual. NORMAL-THEORY -> approximate on Spearman."""
@@ -120,8 +141,9 @@ def divergence_one(feat, perc, act, rng):
     abs_delta = abs(rho_p) - abs(rho_a)
 
     idx = rng.integers(0, n, size=(N_BOOT, n))
-    bp = np.array([_spear(feat[i], perc[i]) for i in idx])
-    ba = np.array([_spear(feat[i], act[i]) for i in idx])
+    rF = _rank_rows(feat[idx])                    # rank once per resample, reused for both
+    bp = _pearson_rows(rF, _rank_rows(perc[idx]))
+    ba = _pearson_rows(rF, _rank_rows(act[idx]))
     bd = bp - ba
     m = np.isfinite(bd)
     bd = bd[m]
@@ -162,11 +184,15 @@ def run(df, rng):
         res.update({'feature': lab, 'group': grp, 'family': fam})
         rows.append(res)
     out = pd.DataFrame(rows)
-    # BH-FDR on the bootstrap p, within the confirmatory family ONLY
-    conf = out['family'] == 'confirmatory'
+    # BH-FDR on the bootstrap p, corrected SEPARATELY within each family. The confirmatory
+    # q is the real claim; the exploratory q is post-hoc (these features were picked BY
+    # their perceived correlation) and shown for curiosity only.
     out['q_bh'] = np.nan
-    out.loc[conf, 'q_bh'] = false_discovery_control(
-        out.loc[conf, 'boot_p'].to_numpy(), method='bh')
+    for fam in ('confirmatory', 'exploratory'):
+        m = out['family'] == fam
+        out.loc[m, 'q_bh'] = false_discovery_control(
+            out.loc[m, 'boot_p'].to_numpy(), method='bh')
+    # only the confirmatory family can formally "diverge"
     out['diverges'] = (out['family'] == 'confirmatory') & (out['q_bh'] <= Q)
     return out
 
@@ -250,14 +276,26 @@ def main():
     tab[cols].to_csv(TABLES / 'segmental_divergence.csv', index=False)
     figure(tab, SEG_FIG / 'divergence_test.png')
 
+    hdr = f'  {"feature":16}{"delta":>7}{"95% CI":>18}{"boot p":>9}{"q":>7}{"Williams p":>12}'
+
+    def _block(sub):
+        for _, r in sub.iterrows():
+            star = ' *' if r['diverges'] else ''
+            print(f"  {r.feature:16}{r.delta:+7.2f}  [{r.ci_lo:+.2f},{r.ci_hi:+.2f}]"
+                  f"{r.boot_p:9.3f}{r.q_bh:7.2f}{r.williams_p:12.3f}{star}")
+
     conf = tab[tab.family == 'confirmatory'].sort_values('delta', ascending=False)
     ndiv = int(tab['diverges'].sum())
     print(f'  confirmatory-13: {ndiv} feature(s) diverge (delta CI excludes 0 & BH q<=%.2f)' % Q)
-    print(f'  {"feature":16}{"delta":>7}{"95% CI":>18}{"boot p":>9}{"q":>7}{"Williams p":>12}')
-    for _, r in conf.iterrows():
-        star = ' *' if r['diverges'] else ''
-        print(f"  {r.feature:16}{r.delta:+7.2f}  [{r.ci_lo:+.2f},{r.ci_hi:+.2f}]"
-              f"{r.boot_p:9.3f}{r.q_bh:7.2f}{r.williams_p:12.3f}{star}")
+    print(hdr)
+    _block(conf)
+
+    expl = tab[tab.family == 'exploratory'].sort_values('delta', ascending=False)
+    print('  exploratory (post-hoc; BH corrected within this family only, no confirmatory '
+          'claim):')
+    print(hdr)
+    _block(expl)
+
     print('  -> tables/segmental_divergence.csv + figures/segmental/divergence_test.png')
     print('done.')
 
