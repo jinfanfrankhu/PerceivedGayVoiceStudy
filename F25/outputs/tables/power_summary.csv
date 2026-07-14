@@ -1,0 +1,25 @@
+scenario,metric,value
+single corr rho=0.1,n for 80% power,783.0
+single corr rho=0.2,n for 80% power,194.0
+single corr rho=0.3,n for 80% power,85.0
+single corr rho=0.4,n for 80% power,47.0
+single corr rho=0.5,n for 80% power,30.0
+n=50,min detectable rho (80%),0.39
+n=100,min detectable rho (80%),0.28
+n=150,min detectable rho (80%),0.23
+actual/Kinsey n=30 (achieved rho~0.29),MC power,0.346
+actual/Kinsey n=40 (achieved rho~0.30),MC power,0.48
+actual/Kinsey n=50 (achieved rho~0.30),MC power,0.564
+actual/Kinsey n=75 (achieved rho~0.30),MC power,0.766
+actual/Kinsey n=100 (achieved rho~0.30),MC power,0.86
+actual/Kinsey n=125 (achieved rho~0.30),MC power,0.934
+actual/Kinsey n=150 (achieved rho~0.30),MC power,0.974
+actual/Kinsey n=200 (achieved rho~0.31),MC power,0.994
+divergence n=30,power,0.157
+divergence n=40,power,0.166
+divergence n=50,power,0.232
+divergence n=75,power,0.328
+divergence n=100,power,0.393
+divergence n=125,power,0.491
+divergence n=150,power,0.539
+divergence n=200,power,0.68

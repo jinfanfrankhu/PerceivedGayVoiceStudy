@@ -38,6 +38,7 @@ src/
   07b_lasso_selection.py   DIAGNOSTIC (not inference): Lasso/ElasticNet stability selection — which features get picked
   07c_elasticnet.py        ROBUSTNESS twin of 07: LOOCV Elastic Net + permutation null (spine replicates)
   08_ablation.py           MECHANISM: targeted feature ablation — which cue blocks carry perceived (/s/ dominates)
+  09_power.py              POWER: sensitivity (min detectable effect at n=50) + planning (n to scale up)
 outputs/
   figures/  rating_histograms/  listener_demographics/  diagnostics/
             accuracy/  inference/  segmental/  prediction/
@@ -64,6 +65,7 @@ py -3.13 src/07_ridge.py              # LOOCV Ridge prediction + permutation nul
 py -3.13 src/07b_lasso_selection.py   # diagnostic: Lasso/ElasticNet stability selection
 py -3.13 src/07c_elasticnet.py        # robustness twin: LOOCV Elastic Net + permutation null (slow, ~hrs)
 py -3.13 src/08_ablation.py           # mechanism: which cue blocks carry perceived (Ridge + Elastic Net twin)
+py -3.13 src/09_power.py              # power analysis: sensitivity (MDE at n=50) + planning (scale-up n)
 ```
 
 `08_ablation.py` takes env knobs — `ABL_NPERM` (1000), `ABL_BOOT` (5000), `ABL_ENET` (1),

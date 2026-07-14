@@ -4,3 +4,6 @@
 __pycache__/
 *.pyc
 listenerplatform/
+
+# personal working notes, not for the repo
+NEXT_STEPS.md
