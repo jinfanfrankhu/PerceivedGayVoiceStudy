@@ -34,8 +34,10 @@ src/
   04_segmental.py          CONFIRMATORY pre-registered segmental hypotheses (one-tailed)
   05_segmental_explore.py  EXPLORATORY segmental sweep (hypothesis-generating volcano)
   06_divergence.py         Steiger / bootstrap of the perceived-vs-actual rho gap (0/13 diverge)
-  07_ridge.py              FINAL step: honest LOOCV Ridge + permutation-null multivariate prediction
+  07_ridge.py              honest LOOCV Ridge + permutation-null multivariate prediction (primary predictor)
   07b_lasso_selection.py   DIAGNOSTIC (not inference): Lasso/ElasticNet stability selection — which features get picked
+  07c_elasticnet.py        ROBUSTNESS twin of 07: LOOCV Elastic Net + permutation null (spine replicates)
+  08_ablation.py           MECHANISM: targeted feature ablation — which cue blocks carry perceived (/s/ dominates)
 outputs/
   figures/  rating_histograms/  listener_demographics/  diagnostics/
             accuracy/  inference/  segmental/  prediction/
@@ -58,9 +60,15 @@ py -3.13 src/03_inference.py          # eGeMAPS correlations + BH-FDR
 py -3.13 src/04_segmental.py          # confirmatory segmental hypotheses
 py -3.13 src/05_segmental_explore.py  # exploratory segmental sweep
 py -3.13 src/06_divergence.py         # rigorous perceived-vs-actual rho-gap test
-py -3.13 src/07_ridge.py              # FINAL: LOOCV Ridge prediction + permutation null
+py -3.13 src/07_ridge.py              # LOOCV Ridge prediction + permutation null (primary)
 py -3.13 src/07b_lasso_selection.py   # diagnostic: Lasso/ElasticNet stability selection
+py -3.13 src/07c_elasticnet.py        # robustness twin: LOOCV Elastic Net + permutation null (slow, ~hrs)
+py -3.13 src/08_ablation.py           # mechanism: which cue blocks carry perceived (Ridge + Elastic Net twin)
 ```
+
+`08_ablation.py` takes env knobs — `ABL_NPERM` (1000), `ABL_BOOT` (5000), `ABL_ENET` (1),
+`ABL_LOFO` (1); set `ABL_NPERM=6 ABL_BOOT=50` for a fast end-to-end smoke test, or
+`ABL_ENET=0` to skip the slow Elastic Net twin.
 
 The segmental scripts (`04`/`05`) read `data/processed/segmental_*.csv`, produced by
 `extract_segmental.py`, which in turn needs the MFA TextGrids in `mfa_textgrids/`.
@@ -92,4 +100,14 @@ Scripts resolve all paths relative to themselves, so they work from any director
   target) and to the segmental analyses (`04_segmental.py` / `05_segmental_explore.py`).
   The segmental branch is where signal appears: /s/ fronting (S_cog) is the confirmed
   perceived cue; the exploratory sweep adds sibilant + /aɪ/ fronting candidates.
+- **Prediction family (`07`/`07c`/`08`):** three linear members share one honest harness —
+  LOOCV out-of-fold prediction vs a 1000-run permutation null, both targets, the same
+  a-priori feature ladder, cross-validated Spearman as the headline. Ridge (`07`, primary)
+  and Elastic Net (`07c`, robustness twin) agree: **perceived is predictable, actual is
+  not.** `08` then decomposes *which* cues carry perceived via block-alone + leave-one-out
+  ablation (permutation null for "beats chance", bootstrap CI on Δρ for "removal hurts").
+  **Result: perceived voice is carried almost entirely by the sibilant /s/ block — S_cog
+  specifically — and it is model-invariant.** Removing /s/ collapses the model; adding the
+  other cue families on top of /s/ is net-neutral-to-harmful (the parsimonious /s/-only
+  model out-predicts the full 13). Actual mirrors this off a non-significant baseline.
 ```
