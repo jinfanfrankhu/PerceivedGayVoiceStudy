@@ -1,0 +1,3 @@
+target,best_layer,wavlm_cv_rho,scog_cv_rho,pred_vs_scog_pearson,pred_vs_scog_r2,pred_vs_scog_spearman,delta_rho,verdict
+perceived,6,0.726508667181276,0.4445405052839222,0.32843069651171997,0.10786672241117351,0.2634813925570228,0.28196816189735385,BEATS /s/: WavLM predicts perceived better than S_cog alone.
+actual,10,0.2641018329586874,0.2701433781570887,0.23507848288491476,0.05526189311547316,0.22333733493397356,-0.006041545198401332,MIXED: overlaps S_cog but neither cleanly beats nor fully reduces.
