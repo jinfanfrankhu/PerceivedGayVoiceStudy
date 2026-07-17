@@ -163,6 +163,8 @@ def money_test(res, scog):
     delta = res['obs_rho'][res['best']] - res['scog_rho']
     if res['collapsed']:
         verdict = "COLLAPSED: Elastic Net zeroed the embedding (no sparse subset predicts)."
+    elif res['best_fw_p'] >= 0.05:                             # gate: no verdict without signal
+        verdict = f"NO SIGNAL: best layer does not beat the permutation null (fw p={res['best_fw_p']:.3f})."
     elif r2_on_scog >= 0.5 and abs(delta) < 0.10:
         verdict = "REDUCES to /s/: perception signal is largely S_cog re-encoded."
     elif delta >= 0.10:
@@ -173,6 +175,7 @@ def money_test(res, scog):
           f"  S_cog-alone={res['scog_rho']:+.3f}  corr(pred,S_cog) r={r_ps:+.3f} (R2={r2_on_scog:.2f})"
           f"  -> {verdict}")
     return {'model': res['model'], 'target': res['target'], 'best_layer': res['best'],
+            'best_fw_p': res['best_fw_p'],
             'wavlm_cv_rho': res['obs_rho'][res['best']], 'scog_cv_rho': res['scog_rho'],
             'pred_vs_scog_pearson': r_ps, 'pred_vs_scog_r2': r2_on_scog,
             'pred_vs_scog_spearman': rho_ps, 'delta_rho': delta,
