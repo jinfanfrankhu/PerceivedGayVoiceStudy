@@ -22,6 +22,7 @@ data/
     crosswalk.csv            file_id <-> initials <-> pseudonym (the one mapping)
     speakers.csv             1 row/speaker: metadata + features + perceived aggregates
     ratings_clean.csv        1 row/rating, joined to canonical ids + true labels
+    wavlm_embeddings.npz     (50,13,768) frozen WavLM per-layer embeddings (from 10_wavlm_extract.py)
 src/
   common.py                shared paths
   extract_features.py      clean_wavs/ -> data/raw/features.csv   (upstream, rarely run)
@@ -39,6 +40,10 @@ src/
   07c_elasticnet.py        ROBUSTNESS twin of 07: LOOCV Elastic Net + permutation null (spine replicates)
   08_ablation.py           MECHANISM: targeted feature ablation — which cue blocks carry perceived (/s/ dominates)
   09_power.py              POWER: sensitivity (min detectable effect at n=50) + planning (n to scale up)
+  10_wavlm_extract.py      SSL EMBEDDINGS: frozen WavLM per-layer mean-pooled embeddings -> npz cache
+  10b_wavlm_probe.py       does a SOTA speech model BEAT/REDUCE-TO /s/? LOOCV Ridge+ElasticNet + max-stat null
+  10c_wavlm_saliency.py    weight-space per-frame attribution (NOT head-robust — the honest guardrail)
+  10d_wavlm_ig.py          input-space integrated gradients (reconciles: VOWELS drive perceived, /s/ does not)
 outputs/
   figures/  rating_histograms/  listener_demographics/  diagnostics/
             accuracy/  inference/  segmental/  prediction/
@@ -66,11 +71,22 @@ py -3.13 src/07b_lasso_selection.py   # diagnostic: Lasso/ElasticNet stability s
 py -3.13 src/07c_elasticnet.py        # robustness twin: LOOCV Elastic Net + permutation null (slow, ~hrs)
 py -3.13 src/08_ablation.py           # mechanism: which cue blocks carry perceived (Ridge + Elastic Net twin)
 py -3.13 src/09_power.py              # power analysis: sensitivity (MDE at n=50) + planning (scale-up n)
+py -3.13 src/10_wavlm_extract.py      # cache frozen WavLM embeddings (needs torch+transformers+librosa+soundfile; ~3min)
+py -3.13 src/10b_wavlm_probe.py       # WavLM prediction: Ridge+ElasticNet + max-stat null (EN null slow, ~hrs)
+py -3.13 src/10c_wavlm_saliency.py    # weight-space per-frame attribution (fast, ~4min)
+py -3.13 src/10d_wavlm_ig.py          # input-space integrated gradients (~1.5-2h on CPU)
 ```
 
 `08_ablation.py` takes env knobs — `ABL_NPERM` (1000), `ABL_BOOT` (5000), `ABL_ENET` (1),
 `ABL_LOFO` (1); set `ABL_NPERM=6 ABL_BOOT=50` for a fast end-to-end smoke test, or
 `ABL_ENET=0` to skip the slow Elastic Net twin.
+
+The WavLM family (`10*`) needs `torch`, `transformers`, `librosa`, `soundfile` (all pip-installed;
+`microsoft/wavlm-base-plus` auto-downloads ~360MB on first run). `10_wavlm_extract.py` must run
+first (writes `data/processed/wavlm_embeddings.npz`); `10b`/`10c`/`10d` consume that cache. Env
+knobs: `10b` — `WAVLM_NPERM` (1000, ridge), `WAVLM_EN_NPERM` (300, enet), `WAVLM_JOBS`; `10d` —
+`IG_STEPS` (20), `IG_SECONDS` (10), `IG_NSPK` (0=all); both take `WAVLM_SAL_LAYER` to pin the layer.
+**Run `10b`/`10d` during the day** — they are multi-hour and a mid-run Windows auto-reboot kills them.
 
 The segmental scripts (`04`/`05`) read `data/processed/segmental_*.csv`, produced by
 `extract_segmental.py`, which in turn needs the MFA TextGrids in `mfa_textgrids/`.
@@ -112,4 +128,28 @@ Scripts resolve all paths relative to themselves, so they work from any director
   specifically — and it is model-invariant.** Removing /s/ collapses the model; adding the
   other cue families on top of /s/ is net-neutral-to-harmful (the parsimonious /s/-only
   model out-predicts the full 13). Actual mirrors this off a non-significant baseline.
+- **WavLM / SSL-probing family (`10`/`10b`/`10c`/`10d`) — the computational reach.** Frozen
+  `microsoft/wavlm-base-plus` (12 transformer layers, 768-dim) is used as a *feature extractor*
+  only (no fine-tuning — n=50 can't train a net); each speaker → one mean-pooled vector per layer.
+  `10b` runs all 13 layers through the SAME honest harness as `07` (LOOCV Ridge + Elastic Net),
+  choosing the layer *inside* CV via a **max-statistic permutation null** (family-wise across the
+  13 layers, so picking the best layer isn't double-dipping). **Result: WavLM predicts PERCEIVED
+  strongly and model-invariantly — ridge L6 ρ=0.73 (fw p=.001), enet L5 ρ=0.67 (p=.003) — beating
+  both S_cog-alone (ρ=0.44) and the full hand-built 13-feature Ridge (ρ=0.39). ACTUAL stays null
+  (ridge fw p=.20, enet .14).** Critically its perceived predictions only weakly track S_cog
+  (R²=0.11) → the deep model does **not reduce to /s/**. `10c`/`10d` then ask *where* it listens.
+  `10c` = exact per-frame attribution from the linear head's weights — but it is **NOT head-robust**
+  (ridge vs enet sign-flip on most phone classes; frame agreement r=0.45), a documented
+  non-identifiability at n=50 (768 collinear dims admit many equally-good weight vectors; the
+  ridge/enet cross-check is the guardrail that caught it — a single-head saliency would have been a
+  confident artifact). `10d` = **integrated gradients through the full frozen WavLM to the input
+  waveform**, which reconciles the heads (time-space agreement r=0.61 > weight-space 0.45): **both
+  heads agree perceived "gay voice" is read primarily in the VOWELS (the top positive phone class
+  for both), while /s/ is NOT a positive cue (negative for ridge, ~0 for enet).** This confirms
+  non-reduction-to-/s/ mechanistically and yields the hand-vs-neural contrast: the *most measurable*
+  cue (/s/, easy to hand-measure) is not the *most perceptually potent* (vowels, which the neural
+  model reads). Caveats: reconciliation is partial (r=0.61, not ~1); the /s/-negativity is relative
+  and possibly a broadband-energy artifact, so the claim is "**/s/ not positive**", not "/s/ signals
+  straight"; IG is computed on a 10s window/speaker. Mechanism (which *vowel* property) is still
+  under-determined at n=50 → motivates the scale-up.
 ```

@@ -1,0 +1,3 @@
+head,layer,window_s,ig_steps,n_speakers,s_contrast_mean,s_contrast_median,frac_speakers_positive,wilcoxon_p_greater,ridge_enet_frame_r
+ridge,6,10.0,20,50,-5.083902e-05,-5.521853e-05,0.02,0.9999999999999973,0.613361
+enet,6,10.0,20,50,-6.496943e-06,-6.8047216e-06,0.38,0.9335197219207148,0.613361

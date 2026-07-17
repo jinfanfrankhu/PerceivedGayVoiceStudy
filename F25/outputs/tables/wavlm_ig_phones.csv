@@ -1,0 +1,13 @@
+phone_class,head,mean_ig,sd,n_speakers
+/s/,enet,-5.913721e-06,2.7985601e-05,50
+/s/,ridge,-4.5874724e-05,2.1459033e-05,50
+non-sib fric,enet,-1.210041e-05,4.0626495e-05,50
+non-sib fric,ridge,-4.050041e-05,4.25901e-05,50
+other sib,enet,3.0017657e-06,4.733855e-05,50
+other sib,ridge,-3.6565747e-05,4.8172715e-05,50
+sonorant,enet,-2.3923996e-05,2.675551e-05,50
+sonorant,ridge,-9.631826e-07,2.3694336e-05,50
+stop/affr,enet,6.823287e-06,2.437527e-05,50
+stop/affr,ridge,6.0217326e-06,2.2850285e-05,50
+vowel,enet,1.0701049e-05,1.5293253e-05,50
+vowel,ridge,1.9665233e-05,1.5278038e-05,50
