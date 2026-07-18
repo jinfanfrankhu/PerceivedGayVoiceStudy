@@ -44,6 +44,7 @@ src/
   10b_wavlm_probe.py       does a SOTA speech model BEAT/REDUCE-TO /s/? LOOCV Ridge+ElasticNet + max-stat null
   10c_wavlm_saliency.py    weight-space per-frame attribution (NOT head-robust — the honest guardrail)
   10d_wavlm_ig.py          input-space integrated gradients (reconciles: VOWELS drive perceived, /s/ does not)
+  10e_wavlm_vowel_probe.py WHICH vowel property? model vowel readout vs hand vowel feats (= /aɪ/ fronting)
 outputs/
   figures/  rating_histograms/  listener_demographics/  diagnostics/
             accuracy/  inference/  segmental/  prediction/
@@ -75,6 +76,7 @@ py -3.13 src/10_wavlm_extract.py      # cache frozen WavLM embeddings (needs tor
 py -3.13 src/10b_wavlm_probe.py       # WavLM prediction: Ridge+ElasticNet + max-stat null (EN null slow, ~hrs)
 py -3.13 src/10c_wavlm_saliency.py    # weight-space per-frame attribution (fast, ~4min)
 py -3.13 src/10d_wavlm_ig.py          # input-space integrated gradients (~1.5-2h on CPU)
+py -3.13 src/10e_wavlm_vowel_probe.py # which vowel property drives it? (fast, ~4min)
 ```
 
 `08_ablation.py` takes env knobs — `ABL_NPERM` (1000), `ABL_BOOT` (5000), `ABL_ENET` (1),
@@ -150,6 +152,16 @@ Scripts resolve all paths relative to themselves, so they work from any director
   cue (/s/, easy to hand-measure) is not the *most perceptually potent* (vowels, which the neural
   model reads). Caveats: reconciliation is partial (r=0.61, not ~1); the /s/-negativity is relative
   and possibly a broadband-energy artifact, so the claim is "**/s/ not positive**", not "/s/ signals
-  straight"; IG is computed on a 10s window/speaker. Mechanism (which *vowel* property) is still
-  under-determined at n=50 → motivates the scale-up.
+  straight"; IG is computed on a 10s window/speaker. `10e` then pins *which* vowel property: it
+  isolates the model's **vowel-region readout** per speaker (head applied to the vowel-frame mean
+  embedding) and Spearman-correlates it with the hand vowel features. **Head-robust result: the
+  model's vowel signal tracks `AY_z2` (/aɪ/ fronting, ρ≈+0.51, partial vs S_cog +0.44) and `AE_z2`
+  (/æ/ backing, ρ≈−0.50, partial −0.45) — the same vowel cues `05`'s exploratory sweep flagged, and
+  independent of the sibilant `S_cog`.** So the frozen SOTA model independently rediscovers your
+  strongest hand-measured vowel cue. Caveats: region readouts are near-collinear with the whole
+  prediction (so this is a cue-*alignment* result, rescued into "vowel cue independent of /s/" by
+  the S_cog-partial, not a clean vowel-vs-/s/ dissociation — that's `10d`); and the per-vowel-type
+  ranking is frequency-confounded (schwa tops it by being most frequent → trust the hand-feature
+  alignment, not the per-vowel bars). *Which* precise vowel dimension + its interactions still needs
+  the scale-up.
 ```
