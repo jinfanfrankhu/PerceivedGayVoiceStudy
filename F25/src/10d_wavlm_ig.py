@@ -22,6 +22,16 @@ on dimensions yet AGREE on time -- which is exactly the "where does it listen" c
 want. If they still disagree in time, the under-determination is deep (a stronger n=50
 argument). Either way is a real result; the ridge-vs-enet cross-check is the guardrail.
 
+COMPLETENESS IS CHECKED, NOT ASSUMED. The path integral is approximated by a midpoint rule
+over IG_STEPS *linearly* spaced points. Linear spacing is perceptually lopsided in amplitude
+(alpha=0.025 is -32 dB, alpha=0.975 is -0.2 dB), so half the steps sit within 6 dB of full
+volume and the quiet end -- where WavLM's response plausibly moves fastest -- is sampled once.
+Whether that under-resolves the integral is not a question to reason about a priori: if the
+discretization captured the path, sum_i IG_i == f(x) - f(x0) to within numerical slop. So we
+compute both endpoints (2 extra forwards/speaker, ~3% overhead) and report the relative error
+per head. rel.err <= COMP_TOL => IG_STEPS was enough. Above it => raise IG_STEPS, and treat
+the per-phone attributions as provisional until it converges.
+
 Cost: backprop through WavLM on CPU is heavy, so we use one ~IG_SECONDS window/speaker
 and IG_STEPS path points. ~1.5-2 h for 50 speakers (no overnight exposure if run by day).
 
@@ -29,7 +39,10 @@ Env knobs: IG_SECONDS (10)  IG_STEPS (20)  IG_NSPK (all)  WAVLM_SAL_LAYER (ridge
 
 Outputs:
   outputs/tables/wavlm_ig_summary.csv     per-head /s/ contrast + head agreement (time space)
+                                          + completeness_relerr_{mean,max} / completeness_ok
   outputs/tables/wavlm_ig_phones.csv      per-(phone class, head) mean IG attribution
+  outputs/tables/wavlm_ig_path.csv        g(alpha) = f(alpha*x) per (speaker, head, alpha),
+                                          endpoints included -- plot to see path curvature
   outputs/figures/prediction/wavlm_ig_phones.png     phone-class profile + /s/ contrast
   outputs/figures/prediction/wavlm_ig_examples.png   spectrogram + IG, /s/ shaded, 2 speakers
 """
@@ -67,6 +80,7 @@ EN_L1, EN_NALPHAS, EN_MAXITER = [0.5, 0.9, 0.99], 20, 3000
 IG_SECONDS = float(os.environ.get('IG_SECONDS', 10))
 IG_STEPS = int(os.environ.get('IG_STEPS', 20))
 IG_NSPK = int(os.environ.get('IG_NSPK', 0))                 # 0 = all
+COMP_TOL = 0.05             # completeness rel. error above this => integral under-resolved
 
 
 def best_layer():
@@ -120,23 +134,55 @@ def fit_head(kind, Xpool, y):
     return head.coef_ / pipe.named_steps['standardscaler'].scale_        # w_eff
 
 
+def head_score(input_values, model, layer, w_torch):
+    """f(x) = w_eff . mean_t hidden[L](x), per head. One forward pass, no grad."""
+    with torch.no_grad():
+        pooled = model(input_values=input_values,
+                       output_hidden_states=True).hidden_states[layer][0].mean(dim=0)
+    return {k: float((w * pooled).sum()) for k, w in w_torch.items()}
+
+
+def path_alphas(steps):
+    """Midpoint-rule sample points for the [0,1] path integral."""
+    return (np.arange(1, steps + 1) - 0.5) / steps
+
+
 def integrated_gradients(input_values, model, layer, w_torch, steps):
-    """IG w.r.t. the model input for each head. Returns {head: (n_samples,) attribution}
-    plus the completeness targets. Baseline = silence (zeros). One forward + 2 backward/step."""
+    """IG w.r.t. the model input for each head. Baseline = silence (zeros).
+    One forward + 2 backward/step, plus 2 extra forwards for the completeness targets.
+
+    Returns (ig, comp, path):
+      ig[head]   : (n_samples,) per-sample attribution
+      comp[head] : (f_x, f_base) -- completeness holds iff sum(ig) == f_x - f_base.
+                   The midpoint rule over `steps` linear points is only an approximation
+                   of the path integral, so this is the convergence diagnostic: a large
+                   relative error means the integral is under-resolved -> raise IG_STEPS.
+      path[head] : [g(alpha) for alpha in path_alphas(steps)], where g(alpha) = f(alpha*x).
+                   The scalar being differentiated, recorded rather than discarded (free --
+                   it is already computed). Its SHAPE is the finer diagnostic: g near-linear
+                   in alpha => the gradient barely moves => `steps` is plenty; g sharply
+                   curved near alpha=0 => the action is at the quiet end, which linear
+                   spacing samples once (alpha=0.025 is -32 dB), and `steps` must go up."""
     base = torch.zeros_like(input_values)
     grads = {k: torch.zeros_like(input_values) for k in w_torch}
-    alphas = (np.arange(1, steps + 1) - 0.5) / steps                     # midpoint rule
-    for a in alphas:
+    path = {k: [] for k in w_torch}
+    for a in path_alphas(steps):
         xa = (base + float(a) * (input_values - base)).detach().requires_grad_(True)
         out = model(input_values=xa, output_hidden_states=True)
         pooled = out.hidden_states[layer][0].mean(dim=0)                 # (768,) mean over frames
         for ki, (k, w) in enumerate(w_torch.items()):
             target = (w * pooled).sum()
+            path[k].append(float(target))                                # g(alpha)
             target.backward(retain_graph=(ki < len(w_torch) - 1))
             grads[k] = grads[k] + xa.grad.detach()
             xa.grad = None
     ig = {k: ((input_values - base) * (g / steps))[0].numpy() for k, g in grads.items()}
-    return ig
+    # completeness targets: the path endpoints themselves (alphas are midpoints, so
+    # neither alpha=0 nor alpha=1 was visited above -> both need their own forward pass)
+    f_x = head_score(input_values, model, layer, w_torch)
+    f_base = head_score(base, model, layer, w_torch)
+    comp = {k: (f_x[k], f_base[k]) for k in w_torch}
+    return ig, comp, path
 
 
 def sample_times(n_samples):
@@ -177,11 +223,12 @@ def main():
     ex_cache = {}
 
     rows, phone_accum, agree = [], {}, {'ridge': [], 'enet': []}
+    path_rows = []
     for i, fid in enumerate(speakers, 1):
         y_audio = librosa.load(WAV_DIR / f'{fid}.wav', sr=TARGET_SR, mono=True)[0]
         y_audio = y_audio[:int(IG_SECONDS * TARGET_SR)].astype(np.float32)
         iv = feat(y_audio, sampling_rate=TARGET_SR, return_tensors='pt').input_values
-        ig = integrated_gradients(iv, model, layer, w_torch, IG_STEPS)
+        ig, comp, path = integrated_gradients(iv, model, layer, w_torch, IG_STEPS)
 
         times = sample_times(ig['ridge'].shape[0])
         intervals = parse_phones(TG_DIR / fid / f'{fid}.TextGrid')
@@ -196,6 +243,21 @@ def main():
             rec[f'{k}_s_mean'] = a[is_s].mean() if is_s.any() else np.nan
             rec[f'{k}_nons_mean'] = a[speech & ~is_s].mean()
             rec[f'{k}_contrast'] = rec[f'{k}_s_mean'] - rec[f'{k}_nons_mean']
+            # completeness: sum of attributions must equal the endpoint score gap
+            f_x, f_b = comp[k]
+            rec[f'{k}_ig_sum'] = a.sum()
+            rec[f'{k}_delta_f'] = f_x - f_b
+            rec[f'{k}_comp_relerr'] = abs(a.sum() - (f_x - f_b)) / (abs(f_x - f_b) + 1e-12)
+            # g(alpha) curve, endpoints included (alpha=0 silence .. alpha=1 full clip)
+            al = np.concatenate(([0.0], path_alphas(IG_STEPS), [1.0]))
+            gv = np.array([f_b] + path[k] + [f_x], dtype=float)
+            for aa, g_a in zip(al, gv):
+                path_rows.append({'file_id': fid, 'head': k, 'alpha': aa, 'g_alpha': g_a})
+            # curvature summary: if g were linear in alpha this is exactly 0.5; far from
+            # 0.5 means the score accumulates unevenly along the path -> denser grid needed
+            rec[f'{k}_path_frac_first_half'] = (
+                (float(np.interp(0.5, al, gv)) - f_b) / (f_x - f_b)
+                if abs(f_x - f_b) > 1e-12 else np.nan)
             for kl in np.unique(klass[speech]):
                 phone_accum.setdefault((kl, k), []).append(a[klass == kl].mean() - sp_mean)
             # frame-aggregated attribution for the agreement r (sum within 20 ms frames)
@@ -221,12 +283,22 @@ def main():
     for k in ('ridge', 'enet'):
         c = fr[f'{k}_contrast'].dropna()
         stat, p = wilcoxon(c, alternative='greater') if len(c) > 1 and c.std() > 0 else (np.nan, np.nan)
+        ce = fr[f'{k}_comp_relerr'].dropna()
+        ok = bool(len(ce) and ce.max() <= COMP_TOL)
+        verdict = 'OK' if ok else f'UNDER-RESOLVED -> raise IG_STEPS (now {IG_STEPS})'
         summ.append({'head': k, 'layer': layer, 'window_s': IG_SECONDS, 'ig_steps': IG_STEPS,
                      'n_speakers': len(c), 's_contrast_mean': c.mean(),
                      's_contrast_median': c.median(), 'frac_speakers_positive': (c > 0).mean(),
-                     'wilcoxon_p_greater': p, 'ridge_enet_frame_r': r_agree})
+                     'wilcoxon_p_greater': p, 'ridge_enet_frame_r': r_agree,
+                     'completeness_relerr_mean': ce.mean(), 'completeness_relerr_max': ce.max(),
+                     'completeness_ok': ok,
+                     'path_frac_first_half': fr[f'{k}_path_frac_first_half'].mean()})
         print(f"\n[{k}] /s/ IG contrast: mean={c.mean():+.2e} median={c.median():+.2e}  "
               f"{100*(c>0).mean():.0f}% speakers positive  Wilcoxon p(>0)={p:.4f}")
+        print(f"[{k}] completeness |sum(IG)-df|/|df|: mean={ce.mean():.2%} max={ce.max():.2%}"
+              f"  (tol {COMP_TOL:.0%})  -> {verdict}")
+        print(f"[{k}] path shape: {fr[f'{k}_path_frac_first_half'].mean():.1%} of the score "
+              f"gap accrues by alpha=0.5  (0.5 = g linear in alpha; far from it = curved)")
     print(f"\n[agreement] ridge vs enet IG (time space): Pearson r={r_agree:+.3f} "
           f"(over {len(ar)} speech frames)  [10c weight-space r was 0.45]")
 
@@ -235,6 +307,7 @@ def main():
                           'sd': np.std(v, ddof=1) if len(v) > 1 else np.nan, 'n_speakers': len(v)}
                          for (kl, k), v in sorted(phone_accum.items())])
     prof.to_csv(TABLES / 'wavlm_ig_phones.csv', index=False)
+    pd.DataFrame(path_rows).to_csv(TABLES / 'wavlm_ig_path.csv', index=False)
 
     fig_phones(prof, summ, fr, r_agree, PRED_DIR / 'wavlm_ig_phones.png')
     fig_examples(ex_cache, examples, layer, PRED_DIR / 'wavlm_ig_examples.png')
