@@ -1,0 +1,52 @@
+# requirements.in — DECLARED dependencies for the analysis core (F24 + F25).
+#
+# This is the package.json of the repo: hand-edited, loosely constrained, lists
+# only DIRECT imports. The package-lock.json equivalent is requirements.txt,
+# which is generated from this file and pins every transitive dependency.
+#
+#   pip install pip-tools
+#   pip-compile requirements.in          -o requirements.txt
+#   pip-compile requirements-extract.in  -o requirements-extract.txt
+#   pip-compile requirements-wavlm.in    -o requirements-wavlm.txt
+#
+# Install the locked set (the `npm ci` equivalent):
+#
+#   pip install -r requirements.txt
+#
+# THE TIERS ARE ALTERNATIVES, NOT ADDITIVE. Each .txt is an independent
+# resolution, and they disagree: numba (via librosa) caps numpy at 2.4.6, while
+# the core tier resolves to 2.5.1. Installing the core then the wavlm tier
+# silently DOWNGRADES numpy, leaving an environment that matches neither lock.
+# For one environment that runs everything (e.g. the `gayvoice` conda env), use
+# the combined lock instead -- a single consistent resolution of all three:
+#
+#   pip-compile requirements.in requirements-extract.in requirements-wavlm.in \
+#       -o requirements-all.txt
+#   pip install -r requirements-all.txt
+#
+# Interpreter is pinned in .python-version (3.13) — the `.nvmrc` equivalent.
+# Bounds below are floors, not the versions the published results were produced
+# with: no manifest existed when those ran, and that interpreter is gone from
+# the original machine, so the historical environment is not recoverable. The
+# lockfiles guarantee reproducibility from here forward, not retroactively.
+#
+# NOT covered here (not pip-installable — install separately):
+#   - Montreal Forced Aligner (conda: `conda install -c conda-forge montreal-forced-aligner`)
+#   - Praat / FastTrack (F24 formant tracking, standalone app)
+
+# --- shared numeric + plotting core ---------------------------------------
+numpy>=1.26
+pandas>=2.0
+scipy>=1.11
+matplotlib>=3.8
+
+# --- modelling (F24 analysis.py; F25 07/07b/07c/08/10b) --------------------
+scikit-learn>=1.4
+joblib>=1.3                 # Parallel/delayed in 07c, 08, 10b
+
+# --- F24 only --------------------------------------------------------------
+seaborn>=0.13               # F24/analysis.py
+statsmodels>=0.14           # F24/analysis.py (lazy import, ~line 1292)
+
+# --- F25 only --------------------------------------------------------------
+adjustText>=1.0             # F25/src/05_segmental_explore.py volcano labels

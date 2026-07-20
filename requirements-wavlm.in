@@ -1,0 +1,22 @@
+# requirements-wavlm.in — the SSL-probing family (F25/src/10*).
+#
+# Heavy (torch alone is >2 GB) and needed only for 10_wavlm_extract.py and its
+# consumers 10b/10c/10d/10e. Kept out of the core so that running the F24
+# analysis or the F25 linear pipeline does not drag in a deep-learning stack.
+#
+#   pip-compile requirements-wavlm.in -o requirements-wavlm.txt
+#   pip install -r requirements-wavlm.txt
+#
+# microsoft/wavlm-base-plus (~360 MB) auto-downloads from the HF hub on first run.
+
+-r requirements.in
+
+torch>=2.2                  # CPU build is fine; nothing here trains
+transformers>=4.40          # WavLMModel, Wav2Vec2FeatureExtractor
+librosa>=0.10.1             # audio load + resample to 16 kHz
+soundfile>=0.12             # librosa's I/O backend (explicit: README calls it out)
+
+# NOTE: librosa pulls in numba, which is the single tightest Python-version
+# constraint in this repo — numba typically supports a new Python release
+# months after it ships. Check numba's supported range before bumping
+# .python-version, or this file will fail to resolve.

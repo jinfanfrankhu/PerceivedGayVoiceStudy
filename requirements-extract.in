@@ -1,0 +1,15 @@
+# requirements-extract.in — upstream feature extraction (rarely run).
+#
+# Only needed to regenerate F25/data/raw/features.csv and the segmental
+# measures from audio. If you are working from the committed CSVs, skip this.
+#
+#   pip-compile requirements-extract.in -o requirements-extract.txt
+#   pip install -r requirements-extract.txt
+
+-r requirements.in
+
+opensmile>=2.5              # F25/src/extract_features.py  -> 88 eGeMAPSv02 features
+praat-parselmouth>=0.4.3    # F25/src/extract_segmental.py -> phone-level measures
+                            # NOTE: parselmouth wheel availability has historically
+                            # lagged new Python releases; this is the dependency
+                            # most likely to block a version bump.
