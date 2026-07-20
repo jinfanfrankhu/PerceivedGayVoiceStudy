@@ -22,6 +22,23 @@ on dimensions yet AGREE on time -- which is exactly the "where does it listen" c
 want. If they still disagree in time, the under-determination is deep (a stronger n=50
 argument). Either way is a real result; the ridge-vs-enet cross-check is the guardrail.
 
+BUT IG DOES NOT ESCAPE THE PROBE ARBITRARINESS -- do not read agreement here as proof that
+it does. By IG's own Linearity axiom, for f = sum_j w_j * pooled_j:
+
+    IG_i(f; x, x0)  =  sum_j  w_j * IG_i(pooled_j; x, x0)
+
+i.e. the attribution map is a LINEAR FUNCTION OF w. Perturb w by delta and the map moves by
+sum_j delta_j IG_i(pooled_j), which vanishes only if delta lies in the null space of the
+path-averaged encoder Jacobian -- a different object from the data-covariance null space that
+made delta unidentifiable in the first place. Ridge and enet are two points in one Rashomon
+set; a third equally-good probe can give a third story, and nothing here forbids it.
+(Implementation Invariance does not help: it covers re-parameterising ONE function, not
+choosing among many that merely fit equally well.) So any empirical ridge/enet agreement
+below is an OBSERVATION, not a guarantee -- see Bilodeau et al., PNAS 121(2) 2024, which
+proves complete+linear attribution methods (IG and SHAP by name) can fail to beat random
+guessing for inferring model behaviour. The defensible version of this analysis samples the
+probe's equivalence class and reports the RANGE of attributions across it.
+
 COMPLETENESS IS CHECKED, NOT ASSUMED. The path integral is approximated by a midpoint rule
 over IG_STEPS *linearly* spaced points. Linear spacing is perceptually lopsided in amplitude
 (alpha=0.025 is -32 dB, alpha=0.975 is -0.2 dB), so half the steps sit within 6 dB of full

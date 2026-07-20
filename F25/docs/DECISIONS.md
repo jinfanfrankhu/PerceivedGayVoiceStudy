@@ -288,3 +288,134 @@ size + bootstrap CI lead (decision A3); sensitivity re-run excluding transmen.
   rate surfaces speakers who likely departed from the script — turning silent failures
   into a visible table.
 - **Status:** SETTLED.
+
+---
+
+## E. SSL representations & attribution (`10`–`10e`)
+
+### E1. WavLM is FROZEN; only a small head is fit
+- **Decision:** `microsoft/wavlm-base-plus` runs in eval mode with `requires_grad_(False)`
+  throughout. The only thing fit on our data is a linear head (~769 numbers).
+- **Rationale:** The encoder has ~95M parameters and we have 50 speakers. Fine-tuning would
+  memorize the sample and generalize to nobody. All the representational learning already
+  happened on 94k hours; we borrow the representation and fit only the readout. This is the
+  standard frozen-SSL + lightweight-probe protocol (SUPERB, Yang et al. Interspeech 2021).
+- **Alternatives:** fine-tuning (rejected: catastrophic overfit at n=50); a deeper MLP probe
+  (rejected: more capacity to fit noise, and probe capacity is known to change conclusions —
+  Zaiem et al., Interspeech 2023).
+- **Status:** SETTLED.
+
+### E2. Cache all 13 layers; choose the layer INSIDE cross-validation, with a max-statistic null
+- **Decision:** `10_wavlm_extract.py` stores every hidden state (13, 768) per speaker.
+  `10b` evaluates all 13 and reports a family-wise p from a **max-statistic permutation
+  null** — each permutation shuffles the label once and records all 13 layers together, so
+  the null is the null of *the best of 13*.
+- **Rationale:** Which layer carries a property is a hyperparameter, and picking the winner
+  post-hoc is double-dipping. The max-stat null is the correct family-wise control. Layer
+  specialization is real and documented (Pasad, Chou & Livescu, ASRU 2021), so the choice
+  cannot simply be fixed a priori either.
+- **Result:** perceived ρ=0.73 at layer 6 of 12 — the middle of the stack, where
+  paralinguistic content is expected; a small independent sanity check. Actual orientation
+  does not beat the null at any layer.
+- **Status:** SETTLED.
+
+### E3. Mean-pool over time → one vector per (speaker, layer)
+- **Decision:** Average the per-frame hidden states across the whole utterance. Long clips
+  are chunked at 20 s purely to bound self-attention memory, with each chunk's sum
+  accumulated and divided by the *total* frame count, so the result equals a single global
+  mean-pool.
+- **Rationale:** Keeps n honestly 50 (one row per speaker) and matches the standard probing
+  setup. Chunking does not distort the average, and WavLM's positional encoding is
+  convolutional/relative, so there is no absolute-position information to disrupt.
+- **Caveat that matters for interpretation:** mean-pooling is **duration-weighting**. Vowels
+  are ~40% of frames, /s/ ~2%, so /s/ can only move the pooled vector by ~2% of its budget
+  regardless of how informative it is. Any "the model reads X not Y" claim from pooled
+  representations is conditional on this. A duration-insensitive pooling (attention, max)
+  is a different question that could answer differently.
+- **Status:** SETTLED (with caveat).
+
+### E4. Two heads — ridge and elastic net — on the same layer
+- **Decision:** Every prediction and attribution step is run through both an L2 (ridge,
+  dense) and an L1+L2 (elastic net, sparse) head, fit at the same layer.
+- **Rationale:** Both minimize squared error and differ only in how coefficients are
+  penalized, so the pair is a controlled test of whether a signal is distributed or carried
+  by a sparse subset. Ridge keeps all 768 dims; enet keeps ~30. Mirrors the `07`/`07c` twin.
+- **Status:** SETTLED — and see E6, where the pair's *disagreement* became the finding.
+
+### E5. Frame attribution by exact linear decomposition, not occlusion (`10c`)
+- **Decision:** Decompose the prediction into per-frame contributions algebraically:
+  `pred = const + mean_t (w_eff · h_t)`, `w_eff = coef / scale`.
+- **Rationale:** The head is linear on a mean-pooled embedding, so this is exact — no
+  perturbation, no re-fit, no leakage, one extra forward pass. Occlusion is the wrong tool
+  here: silencing a ~2%-of-frames /s/ barely moves a whole-utterance mean (E3), so occlusion
+  would measure phone *duration*, not phone *importance*.
+- **Status:** SETTLED as a method; its conclusions are not head-invariant (E6).
+
+### E6. Weight-space attribution is PROBE-DEPENDENT — this is a finding, not a bug
+- **Decision:** Report the ridge/enet disagreement rather than picking the more convenient
+  head.
+- **Finding:** at the same layer with comparable predictive performance (ρ=0.73 / 0.67), the
+  two heads produce frame attributions correlating only r=0.45 and **opposite** per-phone
+  signs (ridge: /s/ contrast −2.44; enet: +0.30).
+- **Rationale:** The 768 dimensions are collinear, so many weight vectors predict the pooled
+  mean equally well and coefficient-reading is not identifiable. This is the textbook
+  multicollinearity result, and lasso's arbitrary selection from a correlated group is the
+  original motivation for elastic net (Zou & Hastie) — i.e. the disagreement is *predicted*,
+  not anomalous. Cf. Antverg & Belinkov, ICLR 2022, on probe weights as a poor basis for
+  ranking dimensions.
+- **Status:** SETTLED.
+
+### E7. Input-space integrated gradients (`10d`) — and what it does NOT fix
+- **Decision:** Attribute in input space by integrating gradients along a straight path from
+  a silence baseline to the clip (20 midpoint steps, first 10 s per speaker), then bin to
+  phones via the MFA TextGrids.
+- **Rationale:** Weight-space attribution credits *dimensions*, which are collinear.
+  Gradients w.r.t. the waveform credit *moments*, which are not interchangeable in the same
+  way. Empirically this helped: head agreement rose to r=0.61 and the per-phone signs
+  reconciled (vowels positive, /s/ negative, both heads).
+- **REVISION — the original rationale was too strong.** "Input space escapes the probe
+  arbitrariness" is false. By IG's own Linearity axiom,
+  `IG_i(f) = Σ_j w_j · IG_i(pooled_j)` — the attribution map is a *linear function of w*, so
+  a different equally-good probe can give a different map. Implementation Invariance does not
+  help (it covers re-parameterising one function, not selecting among many that fit equally
+  well). See Bilodeau, Jaques, Koh & Kim, *PNAS* 121(2), 2024, which proves complete+linear
+  attribution methods — naming IG and SHAP — can fail to beat random guessing for inferring
+  model behaviour. **The observed ridge/enet agreement is an empirical observation, not a
+  guarantee.**
+- **Window caveat:** the first 10 s is the *same text* for every speaker (read passage), so it
+  is well controlled; coverage is adequate (7–8 /s/, 32–52 vowels, 4–6 /aɪ/ per speaker). What
+  it does not control is reading-onset style, and it captures only ~24% of each speaker's /s/.
+- **Status:** REVISED (method retained; the "IG resolves it" interpretation withdrawn).
+
+### E8. IG completeness is checked, not assumed
+- **Decision:** Compute `f(x)` and `f(x₀)` explicitly and report
+  `|Σ IG − (f(x) − f(x₀))| / |f(x) − f(x₀)|` per head, plus the full `g(α)` path curve.
+- **Rationale:** The path integral is approximated by a midpoint rule over linearly spaced α.
+  Linear spacing is perceptually lopsided (α=0.025 is −32 dB, α=0.975 is −0.2 dB), so the
+  quiet end — where the encoder's response plausibly moves fastest — is sampled once. Whether
+  that under-resolves the integral is empirical, not a matter for a priori argument:
+  completeness holds iff the discretization captured the path. Costs 2 extra forwards per
+  speaker (~3%). Sundararajan et al. (2017) recommend exactly this check; no speech paper
+  found reports it.
+- **Status:** PENDING — implemented, **never run**. Per-phone numbers are provisional until
+  it passes.
+
+### E9. Attribution claims must survive the probe's equivalence class (planned)
+- **Decision:** Replace single-probe attribution with a Rashomon-set protocol — sample
+  K≈20 equally-performing probes (bootstrap refits / regularization within the
+  statistically-indistinguishable range), run IG for each, and report the *range* per phone
+  plus sign agreement across K. Claim only what survives.
+- **Rationale:** Follows directly from E6 and E7: if attribution is a function of an
+  arbitrary choice among equally-good probes, the defensible object is the consensus across
+  that set, not any one fit. This is the established remedy in the model-multiplicity
+  literature (Laberge et al., *JMLR* 24(364), 2023; Fisher, Rudin & Dominici; Breiman 2001),
+  where attribution spread provably widens along near-collinear directions.
+- **Cost note:** the forward pass is already shared across heads (`retain_graph=True`), so K
+  probes cost `1 forward + K backwards` per α. Because IG is linear in w (E7), the K probes
+  can also be PCA'd to a few principal directions and the rest reconstructed by linear
+  combination.
+- **Supporting practices:** group collinear dimensions before attributing; report baseline
+  sensitivity (silence vs matched-spectrum noise) as its own axis; judge stability
+  numerically on **signed** values — Adebayo et al. found IG passes parameter-randomisation
+  only in signed rank correlation while the rendered map stays deceptively intact.
+- **Status:** PENDING.

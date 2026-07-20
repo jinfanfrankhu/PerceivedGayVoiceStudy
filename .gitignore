@@ -1,2 +1,5 @@
 # Editor / IDE state — local preference, not project configuration.
 .vscode/
+
+# Local strategy notes — never committed (venue positioning, odds, etc.)
+*.local.md

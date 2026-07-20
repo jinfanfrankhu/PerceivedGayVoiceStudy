@@ -44,6 +44,13 @@ each sub-project's own `CLAUDE.md`/`README.md` carries the working detail and
 loads when you work in that folder. Keep this root file thin — put project-
 specific instructions in the relevant sub-project doc.
 
+**Analysis choices must be justified, not just made.** F25 keeps a methodological
+decision record at `F25/docs/DECISIONS.md` (**Decision · Rationale · Alternatives ·
+Status**). Read the relevant section before changing analysis code, and add an entry
+in the same commit as any new or changed methodological choice. Full rules in
+`F25/CLAUDE.md`. This repo is **public** — decision records are research output;
+venue strategy belongs in the gitignored `*.local.md` files.
+
 ## Environment
 Use the **`gayvoice` conda env** (Python 3.13) for the scientific stack:
 
