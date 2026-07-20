@@ -56,35 +56,49 @@ listenerplatform/ the rating web app (its own repo/history)
 
 ## How to run
 
-Requires Python 3.13 with: pandas, numpy, scipy, scikit-learn, matplotlib,
-seaborn, diptest, opensmile (only for feature extraction).
+Runs in the **`gayvoice` conda env** (Python 3.13). Dependencies are declared in
+`requirements*.in` at the repo root and locked in the generated `requirements*.txt`:
 
 ```
-py -3.13 src/build_dataset.py         # rebuild processed tables from raw
-py -3.13 src/01_descriptive.py        # per-speaker histograms, demographics, diagnostics
-py -3.13 src/02_accuracy.py           # perceived-vs-actual accuracy figures
-py -3.13 src/03_inference.py          # eGeMAPS correlations + BH-FDR
-py -3.13 src/04_segmental.py          # confirmatory segmental hypotheses
-py -3.13 src/05_segmental_explore.py  # exploratory segmental sweep
-py -3.13 src/06_divergence.py         # rigorous perceived-vs-actual rho-gap test
-py -3.13 src/07_ridge.py              # LOOCV Ridge prediction + permutation null (primary)
-py -3.13 src/07b_lasso_selection.py   # diagnostic: Lasso/ElasticNet stability selection
-py -3.13 src/07c_elasticnet.py        # robustness twin: LOOCV Elastic Net + permutation null (slow, ~hrs)
-py -3.13 src/08_ablation.py           # mechanism: which cue blocks carry perceived (Ridge + Elastic Net twin)
-py -3.13 src/09_power.py              # power analysis: sensitivity (MDE at n=50) + planning (scale-up n)
-py -3.13 src/10_wavlm_extract.py      # cache frozen WavLM embeddings (needs torch+transformers+librosa+soundfile; ~3min)
-py -3.13 src/10b_wavlm_probe.py       # WavLM prediction: Ridge+ElasticNet + max-stat null (EN null slow, ~hrs)
-py -3.13 src/10c_wavlm_saliency.py    # weight-space per-frame attribution (fast, ~4min)
-py -3.13 src/10d_wavlm_ig.py          # input-space integrated gradients (~1.5-2h on CPU)
-py -3.13 src/10e_wavlm_vowel_probe.py # which vowel property drives it? (fast, ~4min)
+conda activate gayvoice
+pip install -r ../requirements.txt        # core: build_dataset + 01-09
+pip install -r ../requirements-all.txt    # everything incl. extraction + WavLM (~2 GB, torch)
+```
+
+Install the **combined** lock rather than layering the tiers — they are independent
+resolutions and disagree (numba, via librosa, caps numpy at 2.4.6 where the core tier
+resolves to 2.5.1), so installing one after the other silently downgrades numpy and
+leaves an env matching neither lock.
+
+`py -3.13` no longer resolves on this machine and will not come back — use the env.
+
+```
+python src/build_dataset.py         # rebuild processed tables from raw
+python src/01_descriptive.py        # per-speaker histograms, demographics, diagnostics
+python src/02_accuracy.py           # perceived-vs-actual accuracy figures
+python src/03_inference.py          # eGeMAPS correlations + BH-FDR
+python src/04_segmental.py          # confirmatory segmental hypotheses
+python src/05_segmental_explore.py  # exploratory segmental sweep
+python src/06_divergence.py         # rigorous perceived-vs-actual rho-gap test
+python src/07_ridge.py              # LOOCV Ridge prediction + permutation null (primary)
+python src/07b_lasso_selection.py   # diagnostic: Lasso/ElasticNet stability selection
+python src/07c_elasticnet.py        # robustness twin: LOOCV Elastic Net + permutation null (slow, ~hrs)
+python src/08_ablation.py           # mechanism: which cue blocks carry perceived (Ridge + Elastic Net twin)
+python src/09_power.py              # power analysis: sensitivity (MDE at n=50) + planning (scale-up n)
+python src/10_wavlm_extract.py      # cache frozen WavLM embeddings (needs the -all lock; ~3min)
+python src/10b_wavlm_probe.py       # WavLM prediction: Ridge+ElasticNet + max-stat null (EN null slow, ~hrs)
+python src/10c_wavlm_saliency.py    # weight-space per-frame attribution (fast, ~4min)
+python src/10d_wavlm_ig.py          # input-space integrated gradients (~1.5-2h on CPU)
+python src/10e_wavlm_vowel_probe.py # which vowel property drives it? (fast, ~4min)
 ```
 
 `08_ablation.py` takes env knobs — `ABL_NPERM` (1000), `ABL_BOOT` (5000), `ABL_ENET` (1),
 `ABL_LOFO` (1); set `ABL_NPERM=6 ABL_BOOT=50` for a fast end-to-end smoke test, or
 `ABL_ENET=0` to skip the slow Elastic Net twin.
 
-The WavLM family (`10*`) needs `torch`, `transformers`, `librosa`, `soundfile` (all pip-installed;
-`microsoft/wavlm-base-plus` auto-downloads ~360MB on first run). `10_wavlm_extract.py` must run
+The WavLM family (`10*`) needs `torch`, `transformers`, `librosa`, `soundfile` — install
+`../requirements-all.txt` to get them (`microsoft/wavlm-base-plus` then auto-downloads
+~360MB on first run). `10_wavlm_extract.py` must run
 first (writes `data/processed/wavlm_embeddings.npz`); `10b`/`10c`/`10d` consume that cache. Env
 knobs: `10b` — `WAVLM_NPERM` (1000, ridge), `WAVLM_EN_NPERM` (300, enet), `WAVLM_JOBS`; `10d` —
 `IG_STEPS` (20), `IG_SECONDS` (10), `IG_NSPK` (0=all); both take `WAVLM_SAL_LAYER` to pin the layer.
@@ -108,10 +122,15 @@ Scripts resolve all paths relative to themselves, so they work from any director
 
 ## Method notes (why these choices)
 
-- **Perceived summaries:** we carry the rating *mean* AND *SD*, plus a Hartigan dip
-  test (`is_multimodal`), because the mean hides listener disagreement — real for
-  mid-scale speakers. Don't trust the bimodality *coefficient* on 1–5 data; it
-  over-flags.
+- **Perceived summaries:** we carry the rating *mean* AND *SD*, because the mean hides
+  listener disagreement — real for mid-scale speakers. Listener split is measured with
+  **direct camp proportions** (`frac_low`=P(≤2), `frac_high`=P(≥4), `polarization`=
+  2·min(low,high), `is_split`=both camps ≥0.25), not a bimodality statistic: both the
+  bimodality *coefficient* and Hartigan's dip test over-flag on 5-point discrete data
+  (the dip flagged 47/50, including strictly-decreasing distributions) because they
+  assume continuity. See `docs/DECISIONS.md` A4 — dip test and bimodality coefficient
+  were both REVISED OUT, so there is no `is_multimodal` column and `diptest` is not a
+  dependency.
 - **Correlations:** default to Spearman (Kinsey is ordinal; ~half the acoustic
   features fail a Shapiro–Wilk normality test — see `tables/feature_normality.csv`),
   and report Pearson alongside where it matters.
