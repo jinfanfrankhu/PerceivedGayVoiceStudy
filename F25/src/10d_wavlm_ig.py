@@ -198,8 +198,10 @@ def make_baseline(kind, y_audio, iv, feat, seed):
     """IG reference input x0. 'silence' = zeros (E7 default). 'noise' = a phase-
     randomized surrogate of THIS speaker's clip: identical magnitude spectrum, random
     phase, so it destroys temporal/phonetic structure while matching the long-term
-    spectral envelope (E11). Run through the same feature extractor as x so baseline and
-    input share the extractor's per-clip normalization."""
+    spectral envelope (E11). This is the standard Fourier "surrogate data" null (Theiler
+    et al., Physica D 58, 1992) used as a non-zero IG baseline (cf. Sturmfels, Lundberg &
+    Lee, Distill 2020, on baseline choice). Run through the same feature extractor as x so
+    baseline and input share the extractor's per-clip normalization."""
     if kind == 'silence':
         return torch.zeros_like(iv)
     rng = np.random.default_rng(seed)
