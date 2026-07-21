@@ -397,8 +397,13 @@ size + bootstrap CI lead (decision A3); sensitivity re-run excluding transmen.
   completeness holds iff the discretization captured the path. Costs 2 extra forwards per
   speaker (~3%). Sundararajan et al. (2017) recommend exactly this check; no speech paper
   found reports it.
-- **Status:** PENDING — implemented, **never run**. Per-phone numbers are provisional until
-  it passes.
+- **Status:** REVISED — implemented and **now run** (2026-07-20). Under the original *linear*
+  α spacing it **FAILED**: rel.err 213% (max 416%) at 20 steps, 117% (max 159%) at 50 steps,
+  both heads, tol 5%. The `g(α)` curve shows why — ~100%+ of `f(x)−f(x₀)` accrues in α∈[0,0.01]
+  (violent silence→onset response, then saturation), so uniform α samples the spike ~once, and
+  the convergence rate (rel.err ∝ steps^−0.65) projects ~7000 steps to reach tol — impractical.
+  This motivated the change-of-variables quadrature in **E10**. Per-phone numbers remain
+  provisional until completeness passes under the new grid.
 
 ### E9. Attribution claims must survive the probe's equivalence class (planned)
 - **Decision:** Replace single-probe attribution with a Rashomon-set protocol — sample
@@ -419,3 +424,108 @@ size + bootstrap CI lead (decision A3); sensitivity re-run excluding transmen.
   numerically on **signed** values — Adebayo et al. found IG passes parameter-randomisation
   only in signed rank correlation while the rendered map stays deceptively intact.
 - **Status:** PENDING.
+
+### E10. Non-uniform (power) α-quadrature for the IG path integral (`10d`)
+- **Decision:** Approximate `∫₀¹ ∂f/∂x(x₀+α(x−x₀)) dα` on a **change-of-variables** grid
+  `α = uᵖ` (uniform-`u` midpoints, default `p=3`, `IG_STEPS=32`), with quadrature weights
+  `wⱼ = p·uⱼ^{p−1}/steps`, instead of the uniform-α midpoint rule. Env: `IG_ALPHA` (power|
+  linear), `IG_ALPHA_POWER` (3.0). `p=1` recovers the original linear rule exactly.
+- **Rationale:** The uniform rule was **run and failed completeness by 78–213%** (E8) because,
+  for the silence baseline, essentially all of `f(x)−f(x₀)` accrues in `α∈[0,0.01]` — WavLM
+  responds violently to the silence→signal onset and then saturates. Uniform α lands ~1 sample
+  in that spike; the observed convergence rate projects ~7000 steps to reach the 5% tolerance.
+  The power substitution is not a fudge: it is an **exact reparameterisation of the same
+  integral**, so `Σᵢ IGᵢ = f(x)−f(x₀)` still holds in the limit and the completeness relative
+  error remains the *independent* test that the discretisation succeeded — the estimator stays
+  unbiased, only the sample allocation changes to match where the integrand has mass.
+- **Alternatives considered:** (a) brute-force more uniform steps — rejected, ~7000 needed,
+  weeks of CPU; (b) change the baseline to linearise `g(α)` (E11).
+- **REFUTED BY EXPERIMENT (2026-07-20).** The power grid did **not** rescue the silence
+  baseline — it made completeness *worse* (ridge 222%, enet 264% at p=3/32 steps, vs 117%/78%
+  for linear/50). The premise that the onset is a *resolvable* spike is wrong: the silence→
+  signal transition is effectively **near-singular** (the encoder's first response to signal
+  onset jumps by orders of magnitude across an interval no practical grid subdivides), so
+  concentrating α-points there piles them on a near-vertical wall and the midpoint rule
+  diverges rather than converges. The real lever was the **baseline** (E11): with matched-
+  spectrum noise, `g(α)` is near-linear and completeness passes at 32 *linear* steps
+  (ridge 2.3%), with the α-schedule then nearly irrelevant. The power grid is kept as an
+  available, unbiased option (`IG_ALPHA=power`) but is **not** the fix and is not the default
+  choice once the baseline is well-posed.
+- **Status:** REVISED — power-α retained as a harmless option; it does not solve the silence
+  completeness failure. See E11 for what did.
+
+### E11. IG baseline: silence primary, matched-spectrum noise as a sensitivity axis (`10d`)
+- **Decision:** Keep **silence (zeros)** as the primary IG baseline (E7); add an optional
+  **phase-randomized matched-spectrum noise** baseline (`IG_BASELINE=noise`) — the speaker's
+  own clip with magnitudes preserved and phases randomized (fixed `IG_SEED`), destroying
+  temporal/phonetic structure while matching the long-term spectral envelope. Both baselines
+  are run through the same feature extractor as the input so they share its per-clip
+  normalization. The noise result is reported as the planned baseline-sensitivity axis (E9),
+  not as a replacement for silence.
+- **Rationale:** IG attributes `f(x)−f(x₀)`, so the baseline defines the reference of
+  "absence". Silence has zero free parameters and answers "what in the voice drives the score
+  vs. nothing"; it is the standard default and keeps the primary interpretation clean. A
+  matched-spectrum noise baseline answers a *different, narrower* question — "what drives the
+  score **beyond** the gross spectral envelope" — because it credits the envelope to the
+  baseline. That is exactly why it is informative as a **robustness check** (does the
+  vowels-over-/s/ story survive removing the broadband/spectral-tilt component that the docs
+  flag as a possible /s/-negativity artifact?) and exactly why it must not silently become the
+  primary: it is entangled with the substantive claim and adds researcher degrees of freedom
+  (which noise? matched to what?) that silence does not have.
+- **Alternatives considered:** additive Gaussian/white noise (rejected: does not match the
+  speaker's spectral envelope, so it removes a different, less interpretable thing); averaging
+  IG over a *distribution* of baselines à la Expected Gradients (deferred: more compute; the
+  two-baseline contrast is the reportable sensitivity axis for now).
+- **EXPERIMENT (2026-07-20) forces the primacy question open.** The intended "silence primary"
+  stance assumed silence-IG was merely under-resolved. It is not: silence-IG **fails
+  completeness at every practical grid** (E8, E10) — the method is effectively ill-posed for
+  this encoder, so it cannot be the primary result as written. The **noise** baseline, by
+  contrast, is well-posed (ridge completeness 2.3% at 32 linear steps), yields *more* head-
+  robust attributions (ridge/enet time-space r=0.66 vs 0.61 for silence, 0.45 in weight space),
+  and both heads agree /s/ is **not** a positive cue (0% speakers positive, both). This is a
+  reportable finding in its own right and *strengthens* the ICASSP thesis: even completeness —
+  IG's most basic correctness axiom — is unsatisfiable under the standard baseline, and the
+  baseline choice is itself an arbitrary, answer-changing degree of freedom (feeds E9).
+- **DECISION (2026-07-20): NOISE is the primary baseline.** Silence's completeness failure is
+  reported as a finding (it supports the reliability thesis), and silence-IG is kept runnable
+  (`IG_BASELINE=silence`) only to reproduce that failure. Default config is therefore
+  `IG_BASELINE=noise`, `IG_ALPHA=linear`, `IG_STEPS=128` (E12). Downstream: 10d's per-phone IG
+  numbers are regenerated under noise. 10e is **IG-independent** (it correlates the head's vowel-region
+  readout with hand vowel features and never uses a baseline), so it does not need re-running
+  for this change — but its /aɪ/ interpretation is cross-referenced against the noise-baseline
+  10d phone profile, so keep the two consistent when writing.
+- **Status:** SETTLED (noise primary; silence retained as the reported failure case).
+
+### E12. Completeness verdict uses a scale-floored relative error (`10d`)
+- **Decision:** Judge IG completeness per speaker by `|Σ IG − Δf| / max(|Δf|, median_j|Δf_j|)`
+  (Δf = f(x)−f(x₀)), i.e. the ordinary per-speaker relative error but with the denominator
+  **floored at the head's median |Δf|**. `completeness_ok` = max of this over speakers ≤ 5%.
+  The raw per-speaker relative error, the absolute error, and a `small_signal` flag are still
+  emitted per (speaker, head) in `wavlm_ig_completeness.csv`.
+- **Rationale:** The raw relative error `|Σ IG − Δf|/|Δf|` is **ill-defined as Δf→0**. In the
+  full noise-baseline run (64 steps) one speaker (Randall_Larry_McGaren) had |Δf|=0.005 for
+  enet — ~1% of the median (0.502) — because the model's perceived-gayness readout on his real
+  clip nearly equals its readout on his phase-randomized spectral surrogate. His *absolute*
+  completeness error (0.0053) was smaller than ridge's typical absolute error, yet his raw
+  relative error read 105%, single-handedly failing the `max ≤ tol` verdict. This is a
+  substantive edge case (a voice whose readout is carried entirely by its spectral envelope, so
+  Δf and its attribution are both ~0), not an integration failure — flooring the denominator at
+  the typical signal judges such speakers on absolute closeness while leaving on-scale speakers'
+  relative errors unchanged. It does **not** loosen the test for genuinely under-resolved runs:
+  there the absolute errors are large for everyone, so the floored metric fails too.
+- **Alternatives considered:** raw max relative error (rejected: one near-zero-Δf speaker makes
+  the whole-run verdict meaningless); global normalisation by a single head-wide scale (rejected:
+  unfairly penalises large-|Δf| speakers whose absolute error scales with their signal); median
+  or 90th-percentile relative error as the verdict (rejected: weaker than a per-speaker
+  guarantee, and hides which speakers are small-signal). Reporting the audit CSV keeps the raw
+  numbers and the flag visible so nothing is swept under the floor.
+- **Step count (why 128, not 64):** the floored metric revealed a *second*, non-metric issue —
+  6/47 on-scale enet speakers had 5–13% completeness at 64 steps because the **sparse enet head
+  produces strongly non-monotonic paths** (worst: Keith_Tadeo_Muna, g(α) swings −0.88→+1.08→
+  −0.36 while net Δf=+0.52, so the quadrature must resolve a large mid-path hump to land a modest
+  net). Ridge's paths are near-monotonic and clean at 64. Doubling to **128 steps** converged
+  both heads (ridge max 0.87%, enet max 5.00%) — the authoritative run. So the default is 128;
+  ridge alone would pass at 64. This head-dependent path complexity is itself worth a sentence in
+  the paper (it is another face of the sparse-vs-dense probe difference in E6).
+- **Status:** SETTLED (scale-floored metric; authoritative config noise / linear / 128 steps,
+  both heads completeness_ok=True).

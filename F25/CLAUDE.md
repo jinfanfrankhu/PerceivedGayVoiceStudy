@@ -13,11 +13,12 @@ See `README.md` for the full folder layout, run order, and method notes. Quick m
   `run_classifiers.py` config-driven experiments, `classifier_logs/`,
   `feature_rankings/`). Reference only — not the active path.
 
-Use the **`gayvoice` conda env** (Python 3.13): `conda activate gayvoice`. The system
-`python` (3.14) lacks the scientific stack, and `py -3.13` no longer resolves. Deps are
-locked in the repo-root `requirements*.txt` — `requirements.txt` covers `01`–`09`,
-`requirements-all.txt` adds the extraction + WavLM stacks. Verified 2026-07-20 on the work
-machine: Python 3.13.14, torch 2.13.0+cpu, transformers 5.14.1, librosa 0.11.0, no CUDA.
+Run from a **conda env built from the repo-root requirements** (Python 3.11+); the env
+name varies by machine, so check which envs exist rather than assuming one. The system
+`python` lacks the scientific stack. Deps are locked in the repo-root `requirements*.txt`
+— `requirements.txt` covers `01`–`09`, `requirements-all.txt` adds the extraction + WavLM
+stacks. The WavLM results (`10*`) are sensitive to the torch/transformers versions, so if
+the env changes, run `python src/check_npz_consistency.py` before trusting the cache.
 
 > **Shell note:** examples here use **bash** (Git Bash / MINGW64), so env vars are
 > `IG_NSPK=3 python src/...`. The PowerShell form `$env:IG_NSPK=3` will not work in bash.

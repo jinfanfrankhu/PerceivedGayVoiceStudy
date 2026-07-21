@@ -52,16 +52,13 @@ in the same commit as any new or changed methodological choice. Full rules in
 venue strategy belongs in the gitignored `*.local.md` files.
 
 ## Environment
-Use the **`gayvoice` conda env** (Python 3.13) for the scientific stack:
-
-    conda activate gayvoice
-
-The system `python` (3.14) lacks the stack, and **`py -3.13` does not resolve on
-this machine** — the old 3.13 install is gone and was never recoverable, so any
-`py -3.13` invocation you find in older notes is dead. Dependencies are declared
-in `requirements*.in` at the repo root and locked in the generated
-`requirements*.txt`; `requirements-all.txt` is the single consistent set for one
-env that runs everything. Compile/install commands are in `requirements.in`.
+Run the scientific stack from a **conda env built from the repo-root requirements**
+(Python 3.11+). The env name varies by machine — check which conda envs exist rather
+than assuming a name, and don't rely on the system `python`, which lacks the stack.
+Dependencies are declared in `requirements*.in` at the repo root and locked in the
+generated `requirements*.txt`; install **`requirements-all.txt`** — the single
+consistent set for one env that runs everything — rather than layering the tiers.
+Compile/install commands are in `requirements.in`.
 
 F25 scripts resolve paths relative to themselves, so they run from any working
 directory.

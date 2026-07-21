@@ -56,21 +56,21 @@ listenerplatform/ the rating web app (its own repo/history)
 
 ## How to run
 
-Runs in the **`gayvoice` conda env** (Python 3.13). Dependencies are declared in
-`requirements*.in` at the repo root and locked in the generated `requirements*.txt`:
+Runs in a **conda env built from the repo-root requirements** (Python 3.11+); the env
+name varies by machine, so check which envs exist rather than assuming one, and don't use
+the system `python` (no scientific stack). Dependencies are declared in `requirements*.in`
+at the repo root and locked in the generated `requirements*.txt`:
 
 ```
-conda activate gayvoice
-pip install -r ../requirements.txt        # core: build_dataset + 01-09
+conda activate <your-env>
 pip install -r ../requirements-all.txt    # everything incl. extraction + WavLM (~2 GB, torch)
 ```
 
-Install the **combined** lock rather than layering the tiers — they are independent
-resolutions and disagree (numba, via librosa, caps numpy at 2.4.6 where the core tier
-resolves to 2.5.1), so installing one after the other silently downgrades numpy and
-leaves an env matching neither lock.
-
-`py -3.13` no longer resolves on this machine and will not come back — use the env.
+Install the **combined** `requirements-all.txt` lock rather than layering the core
+`requirements.txt` and the WavLM tier — they are independent resolutions and disagree
+(numba, via librosa, caps numpy at 2.4.6 where the core tier resolves to 2.5.1), so
+installing one after the other silently downgrades numpy and leaves an env matching
+neither lock.
 
 ```
 python src/build_dataset.py         # rebuild processed tables from raw
