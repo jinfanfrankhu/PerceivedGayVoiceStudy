@@ -494,6 +494,30 @@ size + bootstrap CI lead (decision A3); sensitivity re-run excluding transmen.
   readout with hand vowel features and never uses a baseline), so it does not need re-running
   for this change — but its /aɪ/ interpretation is cross-referenced against the noise-baseline
   10d phone profile, so keep the two consistent when writing.
+- **Prior art / grounding (added 2026-07-21).** The baseline is a *synthesis of two
+  established techniques*, not an ad-hoc construction — each half is textbook:
+  1. **Non-zero / distributional IG baselines are standard practice.** Sturmfels, Lundberg &
+     Lee, *"Visualizing the Impact of Feature Attribution Baselines,"* Distill 2020
+     (distill.pub/2020/attribution-baselines) shows the baseline is a *consequential*
+     hyperparameter and analyses Gaussian-noise and other non-zero baselines; the
+     Gaussian-centred-on-input idea traces to Smilkov et al. (SmoothGrad, 2017), and the
+     principled distribution-averaged form is Expected Gradients (Erion, Janizek, Sturmfels,
+     Lundberg & Lee, *Nat. Mach. Intell.* 2021). So "don't use a zero/silence baseline" is a
+     mainstream position, and a noise baseline is one of the named alternatives.
+  2. **Phase-randomised, power-spectrum-preserving surrogates are the standard "surrogate
+     data" null.** Keep the FFT magnitude, randomise the phase, inverse-FFT: Theiler, Eubank,
+     Longtin, Galdrikian & Farmer, *"Testing for Nonlinearity in Time Series: The Method of
+     Surrogate Data,"* Physica D 58 (1992) 77–94 (doi:10.1016/0167-2789(92)90102-S). By the
+     Wiener–Khinchin theorem, preserving the magnitude spectrum preserves the autocorrelation/
+     power spectrum (the "linear" structure), while phase carries the temporal/nonlinear
+     structure that randomisation destroys — exactly the "same spectral colour, no phonetic
+     structure" property we want.
+  Our baseline uses (2) as the reference distribution for (1), per speaker. A targeted search
+  found IG applied to audio/speech (e.g. Spectral IG, arXiv:2605.19607; temporal-detection
+  evaluation on sound classifiers, arXiv:2605.23293) but **no prior use of a phase-randomised
+  matched-spectrum baseline for speech/SSL attribution specifically** — so the *combination* is,
+  as far as we checked, new to this setting (a minor methods contribution for ICASSP), while
+  neither ingredient is novel or exotic on its own.
 - **Status:** SETTLED (noise primary; silence retained as the reported failure case).
 
 ### E12. Completeness verdict uses a scale-floored relative error (`10d`)
@@ -529,3 +553,53 @@ size + bootstrap CI lead (decision A3); sensitivity re-run excluding transmen.
   the paper (it is another face of the sparse-vs-dense probe difference in E6).
 - **Status:** SETTLED (scale-floored metric; authoritative config noise / linear / 128 steps,
   both heads completeness_ok=True).
+
+### E13. Attribute in the physical (phone/time) basis, not a reduced embedding subspace (`10c`/`10d`; `src/svd_rashomon_diagnostic.py`)
+- **Decision:** Do **not** attack the attribution multiplicity by dimensionality-reducing the
+  768-dim embedding (PCA/PCR) or by projecting attribution onto a "stable identifiable subspace."
+  Attribute in the **fixed physical basis** (per-phone / per-frame, as 10c/10d already do) and
+  quantify the residual multiplicity with a **Model-Class-Reliance attribution range** over the
+  linear Rashomon set. Dimensionality reduction is rejected as a *fix*; the SVD is retained only
+  as a *diagnostic* of the Rashomon set's geometry.
+- **Rationale (empirical — `svd_rashomon_diagnostic.py`, L6, n=50, 500 bootstraps):** the SVD of
+  the standardized pooled embeddings shows the multiplicity is **structural**, not a tidy
+  low-rank artifact:
+  1. **The space is genuinely high-dimensional.** Effective rank (entropy) ≈ **31**, participation
+     ratio ≈ 22; **30 of the 49 PCs** are needed for 90% variance — a flat spectrum. So there is
+     no low-dim subspace to reduce *to* without discarding signal. PCA/PCR reduction would throw
+     away predictive information, not concentrate it. (Consistent with the earlier 07 verdict that
+     PCR ≈ hard-thresholded ridge, low value.)
+  2. **The perceived signal is distributed, and not in the high-variance directions.** Strongest
+     single correlate is **PC5 (Spearman ρ=+0.43, p=.002, 5% variance)**; the rest is scattered
+     across PC9/10/15 and reaches into an **unstable tail (PC25, 1.2% variance)**. PCs 1–4 (top
+     variance) barely correlate. The full probe's ρ≈0.73 therefore *aggregates ~a dozen weak
+     directions* — one PC alone only reaches ρ≈0.43. (Per-PC p-values uncorrected across 49 tests:
+     PC5 survives correction; PC9/15/25 are suggestive only.)
+  3. **There is no clean stable subspace to attribute in.** Bootstrap subspace stability (mean
+     cosine of principal angles) is only **0.62 for the single leading direction**, rising to
+     ~0.81 by top-10 — i.e. the embedding basis itself does not replicate at n=50. This kills the
+     "project attribution onto the stable top-k subspace" protocol arm: the stable subspace does
+     not exist. (Subspaces are more stable than the individual PCs inside them — the span holds up
+     better than any one axis — which is *why* the physical-basis attribution of 10d, r=0.61–0.66,
+     beats the embedding-basis weight-space attribution of 10c, r=0.45.)
+  4. **Ordinary collinearity is not the villain; the exact null space is.** Condition number of the
+     retained 49-dim subspace is only **~64** (modest). The dominant non-identifiability is the
+     **719-dim exact null space** (directions with zero between-speaker variance but nonzero
+     within-speaker frame variance) — the data-covariance-vs-encoder-Jacobian mismatch named in E7.
+     This is *why* attribution can move while predictions do not.
+- **Alternatives considered:** (a) PCA/PCR reduction to k dims — **rejected**, the flat spectrum
+  means k must be ≈ full rank to keep the signal, so it reduces nothing and only relocates the
+  arbitrariness into "which k / which rotation." (b) Supervised reduction (PLS) — deferred; it
+  would concentrate the signal but selection-by-y must live inside CV, and it does not remove the
+  null-space freedom that actually drives the multiplicity. (c) "Attribute in the bootstrap-stable
+  top-k subspace" — **rejected** on 3 above (no such stable subspace at n=50). (d) MCR attribution
+  range over the Rashomon set — **adopted as the quantification**, PENDING implementation.
+- **Consequence for the paper:** this pushes the study toward the *structurally-under-determined*
+  reading, which **strengthens** the reliability thesis (the ρ.73 rests on a distributed, partly
+  non-replicating signal inside a 719-dim free null space — single-model attribution cannot be
+  trusted) while **retiring** the "clean subspace fix" framing. Constructive claim = attribute in
+  the fixed physical basis + report the MCR multiplicity range, not dimensionality reduction.
+- **Status:** SETTLED that dimensionality reduction is *not* the fix and attribution stays in the
+  physical basis (diagnostic is reproducible via `src/svd_rashomon_diagnostic.py`, outputs
+  `tables/wavlm_svd_rashomon.csv` + `figures/prediction/wavlm_svd_rashomon.png`). **PENDING:** the
+  MCR attribution-range computation that quantifies the spread.
