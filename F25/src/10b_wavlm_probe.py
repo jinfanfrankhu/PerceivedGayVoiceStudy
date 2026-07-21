@@ -33,8 +33,8 @@ Env knobs:  WAVLM_NPERM (1000, ridge)   WAVLM_EN_NPERM (300, enet)   WAVLM_JOBS 
 Outputs:
   outputs/tables/wavlm_summary.csv      one row per (model x target x layer) + refs
   outputs/tables/wavlm_moneytest.csv    best-layer vs S_cog head-to-head, per model
-  outputs/figures/prediction/wavlm_layers.png    per-layer CV-rho profile, both heads
-  outputs/figures/prediction/wavlm_vs_scog.png   best-layer OOF pred vs S_cog, both heads
+  outputs/figures/prediction/wavlm/layers.png    per-layer CV-rho profile, both heads
+  outputs/figures/prediction/wavlm/vs_scog.png   best-layer OOF pred vs S_cog, both heads
 """
 import os
 import warnings
@@ -53,7 +53,7 @@ from joblib import Parallel, delayed
 
 from common import SPEAKERS_CSV, PROC, FIG, TABLES, ensure_dirs
 
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'wavlm'
 EMB_NPZ = PROC / 'wavlm_embeddings.npz'
 KINSEY = 'Kinsey Scale (1-5)'
 TARGETS = {'perceived': 'perceived_mean', 'actual': KINSEY}
@@ -286,12 +286,12 @@ def main():
                                  'cv_r2': res['scog_r2'], 'cv_mae': res['scog_mae'],
                                  'perm_p': np.nan, 'is_best': False, 'best_fw_p': np.nan})
 
-    fig_layers(results, PRED_DIR / 'wavlm_layers.png')
-    fig_vs_scog(results, scog_perceived, mts, PRED_DIR / 'wavlm_vs_scog.png')
+    fig_layers(results, PRED_DIR / 'layers.png')
+    fig_vs_scog(results, scog_perceived, mts, PRED_DIR / 'vs_scog.png')
     pd.DataFrame(summary_rows).to_csv(TABLES / 'wavlm_summary.csv', index=False)
     pd.DataFrame(money_rows).to_csv(TABLES / 'wavlm_moneytest.csv', index=False)
     print('\n  -> tables/wavlm_summary.csv, tables/wavlm_moneytest.csv')
-    print('  -> figures/prediction/wavlm_layers.png, wavlm_vs_scog.png')
+    print('  -> figures/prediction/wavlm/layers.png, vs_scog.png')
     print('done.')
 
 

@@ -41,9 +41,9 @@ The rho=-1 intercept artefact (why some cells are reported as undefined):
   If that ever bites, the fix is a less pathological metric (K-fold rather than LOO) -- which is
   a full recompute and a change to 07's shared harness, so it is deliberately not done here.
 
-Outputs (shared prediction/ folder for cross-model comparison with ridge_*):
+Outputs (shared prediction/handcrafted/ folder for cross-model comparison with ridge_*):
   outputs/tables/enet_summary.csv            one row per (target x feature set)
-  outputs/figures/prediction/enet_null.png   observed CV rho vs permutation null
+  outputs/figures/prediction/handcrafted/enet_null.png   observed CV rho vs permutation null
   outputs/tables/enet_nulls.npz              raw null draws (see --from-cache)
 
 Run with --from-cache to re-derive the summary and figure from the persisted null draws
@@ -66,7 +66,7 @@ from joblib import Parallel, delayed
 
 from common import SPEAKERS_CSV, FEATURES_CSV, PROC, FIG, TABLES, ensure_dirs
 
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'handcrafted'
 KINSEY = 'Kinsey Scale (1-5)'
 TARGETS = {'perceived': 'perceived_mean', 'actual': KINSEY}
 
@@ -340,7 +340,7 @@ def main():
                'collapsed', 'zeroed_folds', 'cv_r2', 'cv_mae', 'perm_p', 'null_mean',
                'null_p95', 'null_collapse_frac']]
     out.to_csv(TABLES / 'enet_summary.csv', index=False)
-    print('  -> tables/enet_summary.csv + figures/prediction/enet_null.png')
+    print('  -> tables/enet_summary.csv + figures/prediction/handcrafted/enet_null.png')
     print('done.')
 
 

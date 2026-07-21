@@ -31,8 +31,8 @@ enet comparison is controlled (only the estimator differs).
 Outputs:
   outputs/tables/wavlm_saliency_summary.csv    per-head /s/ contrast + head agreement
   outputs/tables/wavlm_saliency_phones.csv     per-(phone class, head) mean contribution
-  outputs/figures/prediction/wavlm_saliency_examples.png   spectrogram + saliency, 2 speakers
-  outputs/figures/prediction/wavlm_saliency_phones.png     phone-class profile + /s/ contrast
+  outputs/figures/prediction/wavlm/saliency_examples.png   spectrogram + saliency, 2 speakers
+  outputs/figures/prediction/wavlm/saliency_phones.png     phone-class profile + /s/ contrast
 """
 import os
 import re
@@ -54,7 +54,7 @@ from transformers import WavLMModel, Wav2Vec2FeatureExtractor
 
 from common import ROOT, PROC, SPEAKERS_CSV, FIG, TABLES, ensure_dirs
 
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'wavlm'
 EMB_NPZ = PROC / 'wavlm_embeddings.npz'
 TG_DIR = ROOT / 'mfa_textgrids'
 WAV_DIR = ROOT / 'clean_wavs'
@@ -246,10 +246,10 @@ def main():
     prof = pd.DataFrame(prof)
     prof.to_csv(TABLES / 'wavlm_saliency_phones.csv', index=False)
 
-    fig_phones(prof, summ, fr, PRED_DIR / 'wavlm_saliency_phones.png')
-    fig_examples(ex_cache, examples, layer, PRED_DIR / 'wavlm_saliency_examples.png')
+    fig_phones(prof, summ, fr, PRED_DIR / 'saliency_phones.png')
+    fig_examples(ex_cache, examples, layer, PRED_DIR / 'saliency_examples.png')
     print('\n  -> tables/wavlm_saliency_summary.csv, wavlm_saliency_phones.csv')
-    print('  -> figures/prediction/wavlm_saliency_phones.png, wavlm_saliency_examples.png')
+    print('  -> figures/prediction/wavlm/saliency_phones.png, saliency_examples.png')
     print('done.')
 
 

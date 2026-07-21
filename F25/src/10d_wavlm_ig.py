@@ -69,8 +69,8 @@ Outputs:
   outputs/tables/wavlm_ig_phones.csv      per-(phone class, head) mean IG attribution
   outputs/tables/wavlm_ig_path.csv        g(alpha) = f(alpha*x) per (speaker, head, alpha),
                                           endpoints included -- plot to see path curvature
-  outputs/figures/prediction/wavlm_ig_phones.png     phone-class profile + /s/ contrast
-  outputs/figures/prediction/wavlm_ig_examples.png   spectrogram + IG, /s/ shaded, 2 speakers
+  outputs/figures/prediction/wavlm/ig_phones.png     phone-class profile + /s/ contrast
+  outputs/figures/prediction/wavlm/ig_examples.png   spectrogram + IG, /s/ shaded, 2 speakers
 """
 import os
 import re
@@ -92,7 +92,7 @@ from transformers import WavLMModel, Wav2Vec2FeatureExtractor
 
 from common import ROOT, PROC, SPEAKERS_CSV, FIG, TABLES, ensure_dirs
 
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'wavlm'
 EMB_NPZ = PROC / 'wavlm_embeddings.npz'
 TG_DIR = ROOT / 'mfa_textgrids'
 WAV_DIR = ROOT / 'clean_wavs'
@@ -412,10 +412,10 @@ def main():
     prof.to_csv(TABLES / 'wavlm_ig_phones.csv', index=False)
     pd.DataFrame(path_rows).to_csv(TABLES / 'wavlm_ig_path.csv', index=False)
 
-    fig_phones(prof, summ, fr, r_agree, PRED_DIR / 'wavlm_ig_phones.png')
-    fig_examples(ex_cache, examples, layer, PRED_DIR / 'wavlm_ig_examples.png')
+    fig_phones(prof, summ, fr, r_agree, PRED_DIR / 'ig_phones.png')
+    fig_examples(ex_cache, examples, layer, PRED_DIR / 'ig_examples.png')
     print('\n  -> tables/wavlm_ig_summary.csv, wavlm_ig_phones.csv, wavlm_ig_completeness.csv')
-    print('  -> figures/prediction/wavlm_ig_phones.png, wavlm_ig_examples.png')
+    print('  -> figures/prediction/wavlm/ig_phones.png, ig_examples.png')
     print('done.')
 
 

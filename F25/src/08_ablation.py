@@ -46,13 +46,13 @@ Runtime knobs via env (defaults = the real overnight run):
   ABL_ENET  (1)     run the Elastic Net twin    ABL_LOFO (1)     run single-feature LOFO
 Set ABL_NPERM=6 ABL_BOOT=50 for a fast end-to-end smoke test.
 
-Outputs (shared prediction/ folder, alongside ridge_* / enet_*):
+Outputs (shared prediction/handcrafted/ folder, alongside ridge_* / enet_*):
   outputs/tables/ablation_summary.csv          one row per (model x target x pass x block/feature)
   outputs/tables/ablation_nulls.npz            permutation nulls, for re-plotting without recompute
-  outputs/figures/prediction/ablation_ridge.png   block-alone ρ + leave-out Δρ (Ridge)
-  outputs/figures/prediction/ablation_enet.png    same, Elastic Net twin
-  outputs/figures/prediction/ablation_lofo.png    single-feature leave-one-out Δρ (Ridge)
-  outputs/figures/prediction/ablation_compare.png block Δρ, Ridge vs Elastic Net (invariance)
+  outputs/figures/prediction/handcrafted/ablation_ridge.png   block-alone ρ + leave-out Δρ (Ridge)
+  outputs/figures/prediction/handcrafted/ablation_enet.png    same, Elastic Net twin
+  outputs/figures/prediction/handcrafted/ablation_lofo.png    single-feature leave-one-out Δρ (Ridge)
+  outputs/figures/prediction/handcrafted/ablation_compare.png block Δρ, Ridge vs Elastic Net (invariance)
 """
 import os
 import warnings
@@ -71,7 +71,7 @@ from joblib import Parallel, delayed
 
 from common import SPEAKERS_CSV, FEATURES_CSV, PROC, FIG, TABLES, ensure_dirs
 
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'handcrafted'
 KINSEY = 'Kinsey Scale (1-5)'
 TARGETS = {'perceived': 'perceived_mean', 'actual': KINSEY}
 

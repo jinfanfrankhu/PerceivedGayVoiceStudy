@@ -26,9 +26,9 @@ Run on TWO pools (combined-169 = everything competes; segmental-only = phonetic 
 and BOTH targets. Expected contrast = the study spine again: PERCEIVED yields a few clearly
 stable cues; ACTUAL yields nothing stable (different noise features win each run).
 
-Outputs (shared prediction/ folder; diagnostic, so clearly named):
+Outputs (shared prediction/handcrafted/ folder; diagnostic, so clearly named):
   outputs/tables/lasso_selection_{combined,segmental}.csv
-  outputs/figures/prediction/lasso_selection_{combined,segmental}.png
+  outputs/figures/prediction/handcrafted/lasso_selection_{combined,segmental}.png
 """
 import matplotlib
 matplotlib.use('Agg')
@@ -41,7 +41,7 @@ from sklearn.linear_model import LassoCV, ElasticNetCV, Lasso, ElasticNet
 
 from common import SPEAKERS_CSV, FEATURES_CSV, PROC, FIG, TABLES, ensure_dirs
 
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'handcrafted'
 KINSEY = 'Kinsey Scale (1-5)'
 TARGETS = {'perceived': 'perceived_mean', 'actual': KINSEY}
 
@@ -197,7 +197,7 @@ def main():
         tab[keep].to_csv(TABLES / f'lasso_selection_{pool_name}.csv', index=False)
         figure(tab, pool_name, PRED_DIR / f'lasso_selection_{pool_name}.png')
         _report(tab, pool_name, alphas)
-    print('  -> tables/lasso_selection_*.csv + figures/prediction/lasso_selection_*.png')
+    print('  -> tables/lasso_selection_*.csv + figures/prediction/handcrafted/lasso_selection_*.png')
     print('done.')
 
 

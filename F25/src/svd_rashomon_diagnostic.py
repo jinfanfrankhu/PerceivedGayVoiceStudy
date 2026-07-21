@@ -31,7 +31,7 @@ StandardScaler in 10b/10c/10d), so the geometry reflects what the fitted probes 
 Outputs:
   outputs/tables/wavlm_svd_rashomon.csv     per-PC: sigma, var frac, cumulative, rel axis
                                             length, bootstrap stability, perceived Spearman
-  outputs/figures/prediction/wavlm_svd_rashomon.png   scree + stability + perceived-vs-PC
+  outputs/figures/prediction/wavlm/svd_rashomon.png   scree + stability + perceived-vs-PC
 """
 import os
 import numpy as np
@@ -45,7 +45,7 @@ from scipy.linalg import subspace_angles
 from common import PROC, SPEAKERS_CSV, TABLES, FIG, ensure_dirs
 
 EMB_NPZ = PROC / 'wavlm_embeddings.npz'
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'wavlm'
 N_BOOT = int(os.environ.get('SVD_NBOOT', 500))
 SEED = int(os.environ.get('SVD_SEED', 0))
 K_STAB = 15                                    # report subspace stability for k = 1..K_STAB
@@ -189,9 +189,9 @@ def main():
     fig.suptitle('Linear-probe Rashomon geometry from the SVD of pooled WavLM embeddings (n=50)',
                  fontsize=12)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(PRED_DIR / 'wavlm_svd_rashomon.png', dpi=120)
+    fig.savefig(PRED_DIR / 'svd_rashomon.png', dpi=120)
     plt.close(fig)
-    print('\n  -> tables/wavlm_svd_rashomon.csv, figures/prediction/wavlm_svd_rashomon.png')
+    print('\n  -> tables/wavlm_svd_rashomon.csv, figures/prediction/wavlm/svd_rashomon.png')
     print('done.')
 
 

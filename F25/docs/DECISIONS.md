@@ -601,5 +601,5 @@ size + bootstrap CI lead (decision A3); sensitivity re-run excluding transmen.
   the fixed physical basis + report the MCR multiplicity range, not dimensionality reduction.
 - **Status:** SETTLED that dimensionality reduction is *not* the fix and attribution stays in the
   physical basis (diagnostic is reproducible via `src/svd_rashomon_diagnostic.py`, outputs
-  `tables/wavlm_svd_rashomon.csv` + `figures/prediction/wavlm_svd_rashomon.png`). **PENDING:** the
+  `tables/wavlm_svd_rashomon.csv` + `figures/prediction/wavlm/svd_rashomon.png`). **PENDING:** the
   MCR attribution-range computation that quantifies the spread.

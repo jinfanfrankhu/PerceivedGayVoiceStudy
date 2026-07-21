@@ -24,8 +24,8 @@ separate the vowel cue from the sibilant one.
 Outputs:
   outputs/tables/wavlm_vowel_probe.csv     hand-feature x head Spearman (vowel & /s/ readouts)
   outputs/tables/wavlm_vowel_regions.csv   region/per-vowel readout vs perceived
-  outputs/figures/prediction/wavlm_vowel_probe.png     region-vs-perceived + which hand feature
-  outputs/figures/prediction/wavlm_vowel_byvowel.png   which vowel type carries it
+  outputs/figures/prediction/wavlm/vowel_probe.png     region-vs-perceived + which hand feature
+  outputs/figures/prediction/wavlm/vowel_byvowel.png   which vowel type carries it
 """
 import os
 import re
@@ -47,7 +47,7 @@ from transformers import WavLMModel, Wav2Vec2FeatureExtractor
 
 from common import ROOT, PROC, SPEAKERS_CSV, FIG, TABLES, ensure_dirs
 
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'wavlm'
 EMB_NPZ = PROC / 'wavlm_embeddings.npz'
 TG_DIR = ROOT / 'mfa_textgrids'
 WAV_DIR = ROOT / 'clean_wavs'
@@ -218,10 +218,10 @@ def main():
     feat_df.to_csv(TABLES / 'wavlm_vowel_probe.csv', index=False)
     byv_df.to_csv(TABLES / 'wavlm_vowel_byvowel.csv', index=False)
 
-    fig_probe(region_rows, feat_df, PRED_DIR / 'wavlm_vowel_probe.png')
-    fig_byvowel(byv_df, PRED_DIR / 'wavlm_vowel_byvowel.png')
+    fig_probe(region_rows, feat_df, PRED_DIR / 'vowel_probe.png')
+    fig_byvowel(byv_df, PRED_DIR / 'vowel_byvowel.png')
     print('\n  -> tables/wavlm_vowel_probe.csv, wavlm_vowel_regions.csv, wavlm_vowel_byvowel.csv')
-    print('  -> figures/prediction/wavlm_vowel_probe.png, wavlm_vowel_byvowel.png')
+    print('  -> figures/prediction/wavlm/vowel_probe.png, vowel_byvowel.png')
     print('done.')
 
 

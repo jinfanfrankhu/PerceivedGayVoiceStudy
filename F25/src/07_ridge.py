@@ -32,11 +32,11 @@ Design decisions (settled with user):
 Expected result, stated in advance: PERCEIVED beats its permutation null; ACTUAL does not.
 
 This is the Ridge (L2) member of the prediction family; Elastic Net / PLS / PCR live in
-sibling scripts and share the outputs/figures/prediction/ folder for cross-model comparison.
+sibling scripts and share the outputs/figures/prediction/handcrafted/ folder for cross-model comparison.
 
 Outputs:
   outputs/tables/ridge_summary.csv            one row per (target x feature set)
-  outputs/figures/prediction/ridge_null.png   observed CV rho vs permutation null
+  outputs/figures/prediction/handcrafted/ridge_null.png   observed CV rho vs permutation null
 """
 import matplotlib
 matplotlib.use('Agg')
@@ -51,7 +51,7 @@ from sklearn.linear_model import RidgeCV
 
 from common import SPEAKERS_CSV, FEATURES_CSV, PROC, FIG, TABLES, ensure_dirs
 
-PRED_DIR = FIG / 'prediction'
+PRED_DIR = FIG / 'prediction' / 'handcrafted'
 KINSEY = 'Kinsey Scale (1-5)'
 TARGETS = {'perceived': 'perceived_mean', 'actual': KINSEY}
 
@@ -208,7 +208,7 @@ def main():
     out = out[['target', 'feature_set', 'n_features', 'n', 'cv_spearman', 'cv_r2',
                'cv_mae', 'perm_p', 'null_mean', 'null_p95']]
     out.to_csv(TABLES / 'ridge_summary.csv', index=False)
-    print('  -> tables/ridge_summary.csv + figures/prediction/ridge_null.png')
+    print('  -> tables/ridge_summary.csv + figures/prediction/handcrafted/ridge_null.png')
     print('done.')
 
 
