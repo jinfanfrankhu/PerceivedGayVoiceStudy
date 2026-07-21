@@ -12,9 +12,13 @@ gradients backprops the prediction through the ENTIRE frozen WavLM to the input 
 
     IG_i = (x_i - x0_i) * mean_alpha  d f(x0 + alpha (x - x0)) / d x_i ,   alpha in [0,1]
 
-with baseline x0 = silence (zeros) and f(x) = w_eff . mean_t WavLM(x).hidden[L].
-Averaging the gradient along the silence->clip path (not just at the clip) defeats
-saturation; completeness guarantees sum_i IG_i = f(x) - f(x0).
+with baseline x0 and f(x) = w_eff . mean_t WavLM(x).hidden[L]. Averaging the gradient along
+the x0->clip path (not just at the clip) defeats saturation; completeness guarantees
+sum_i IG_i = f(x) - f(x0). PRIMARY baseline is matched-spectrum NOISE (E11): the silence
+baseline was found to be ill-posed here -- IG completeness is unsatisfiable at any practical
+grid because WavLM's response to the silence->signal onset is near-singular (see E8/E10).
+Noise makes g(alpha) near-linear, completeness passes, and the heads agree better. Silence
+(IG_BASELINE=silence) is retained only to reproduce that failure as a reported result.
 
 Why this might BREAK THE TIE 10c hit: the collinear dims ridge/enet weight differently
 may trace back through WavLM to the SAME moments in the audio. So the heads can disagree
@@ -39,24 +43,29 @@ proves complete+linear attribution methods (IG and SHAP by name) can fail to bea
 guessing for inferring model behaviour. The defensible version of this analysis samples the
 probe's equivalence class and reports the RANGE of attributions across it.
 
-COMPLETENESS IS CHECKED, NOT ASSUMED. The path integral is approximated by a midpoint rule
-over IG_STEPS *linearly* spaced points. Linear spacing is perceptually lopsided in amplitude
-(alpha=0.025 is -32 dB, alpha=0.975 is -0.2 dB), so half the steps sit within 6 dB of full
-volume and the quiet end -- where WavLM's response plausibly moves fastest -- is sampled once.
-Whether that under-resolves the integral is not a question to reason about a priori: if the
-discretization captured the path, sum_i IG_i == f(x) - f(x0) to within numerical slop. So we
-compute both endpoints (2 extra forwards/speaker, ~3% overhead) and report the relative error
-per head. rel.err <= COMP_TOL => IG_STEPS was enough. Above it => raise IG_STEPS, and treat
-the per-phone attributions as provisional until it converges.
+COMPLETENESS IS CHECKED, NOT ASSUMED. The path integral is approximated by a quadrature over
+IG_STEPS points; completeness holds iff sum_i IG_i == f(x) - f(x0) to within numerical slop,
+so we compute both endpoints (2 extra forwards/speaker, ~3% overhead) and report the relative
+error per head. The ORIGINAL *linearly* spaced midpoint rule was run and FAILED badly (rel.err
+78-213% at 20-50 steps): with the silence baseline ~100%+ of f(x)-f(x0) accrues in alpha in
+[0, 0.01] (WavLM reacts violently to the silence->signal onset, then saturates), so uniform
+alpha lands ~1 point in the spike. Extrapolating the convergence rate, uniform spacing would
+need ~7000 steps -- impractical. The fix (E10) is a change-of-variables 'power' grid
+(alpha=u^p) that clusters points near 0 while staying an unbiased quadrature of the same
+integral. rel.err <= COMP_TOL => the grid was enough; above it => raise IG_STEPS / IG_ALPHA_POWER,
+and treat the per-phone attributions as provisional until it converges.
 
 Cost: backprop through WavLM on CPU is heavy, so we use one ~IG_SECONDS window/speaker
-and IG_STEPS path points. ~1.5-2 h for 50 speakers (no overnight exposure if run by day).
+and IG_STEPS path points. ~2.8 h for 50 speakers at 128 steps on this CPU (run by day, or GPU).
 
-Env knobs: IG_SECONDS (10)  IG_STEPS (20)  IG_NSPK (all)  WAVLM_SAL_LAYER (ridge best)
+Env knobs: IG_SECONDS (10)  IG_STEPS (128)  IG_NSPK (all)  WAVLM_SAL_LAYER (ridge best)
+           IG_BASELINE (noise|silence)  IG_ALPHA (linear|power)  IG_ALPHA_POWER (3.0)  IG_SEED (0)
 
 Outputs:
   outputs/tables/wavlm_ig_summary.csv     per-head /s/ contrast + head agreement (time space)
-                                          + completeness_relerr_{mean,max} / completeness_ok
+                                          + completeness (scale-floored) / completeness_ok
+  outputs/tables/wavlm_ig_completeness.csv  per-(speaker, head) ig_sum, delta_f, abs/rel error,
+                                          small_signal flag -- the completeness audit trail (E12)
   outputs/tables/wavlm_ig_phones.csv      per-(phone class, head) mean IG attribution
   outputs/tables/wavlm_ig_path.csv        g(alpha) = f(alpha*x) per (speaker, head, alpha),
                                           endpoints included -- plot to see path curvature
@@ -95,8 +104,12 @@ ALPHAS_GRID = np.logspace(-1, 5, 16)
 EN_L1, EN_NALPHAS, EN_MAXITER = [0.5, 0.9, 0.99], 20, 3000
 
 IG_SECONDS = float(os.environ.get('IG_SECONDS', 10))
-IG_STEPS = int(os.environ.get('IG_STEPS', 20))
+IG_STEPS = int(os.environ.get('IG_STEPS', 128))            # 128 converges both heads (E12)
 IG_NSPK = int(os.environ.get('IG_NSPK', 0))                 # 0 = all
+IG_BASELINE = os.environ.get('IG_BASELINE', 'noise')        # noise (primary) | silence (see E11)
+IG_ALPHA = os.environ.get('IG_ALPHA', 'linear')             # linear | power  (see E10)
+IG_ALPHA_POWER = float(os.environ.get('IG_ALPHA_POWER', 3.0))
+IG_SEED = int(os.environ.get('IG_SEED', 0))
 COMP_TOL = 0.05             # completeness rel. error above this => integral under-resolved
 
 
@@ -159,47 +172,82 @@ def head_score(input_values, model, layer, w_torch):
     return {k: float((w * pooled).sum()) for k, w in w_torch.items()}
 
 
-def path_alphas(steps):
-    """Midpoint-rule sample points for the [0,1] path integral."""
-    return (np.arange(1, steps + 1) - 0.5) / steps
+def path_quadrature(steps):
+    """Sample points + weights for the [0,1] path integral  int_0^1 grad(alpha) d alpha.
+
+    'linear' = the uniform midpoint rule (alpha_j evenly spaced, weight 1/steps) -- the
+    original scheme. It was empirically shown to UNDER-RESOLVE this integral: for the
+    silence baseline, ~100%+ of f(x)-f(x0) accrues in alpha in [0, 0.01] (WavLM reacts
+    violently to the silence->signal onset, then saturates), so uniform sampling lands
+    ~1 point in the spike and completeness fails by 78-213% at 20-50 steps (see E10).
+
+    'power' = the change of variables alpha = u^p on a uniform-u midpoint grid. Then
+        int_0^1 grad(alpha) d alpha = int_0^1 grad(u^p) * p u^{p-1} du,
+    so weight_j = p u_j^{p-1} / steps. This clusters alpha near 0 (weights shrink there
+    to compensate), resolving the onset spike while remaining an UNBIASED quadrature of
+    the same integral -- completeness stays the independent test that it worked. p=1
+    recovers 'linear'."""
+    u = (np.arange(1, steps + 1) - 0.5) / steps
+    if IG_ALPHA == 'linear':
+        return u, np.full(steps, 1.0 / steps)
+    p = IG_ALPHA_POWER
+    return u ** p, (p * u ** (p - 1)) / steps
 
 
-def integrated_gradients(input_values, model, layer, w_torch, steps):
-    """IG w.r.t. the model input for each head. Baseline = silence (zeros).
+def make_baseline(kind, y_audio, iv, feat, seed):
+    """IG reference input x0. 'silence' = zeros (E7 default). 'noise' = a phase-
+    randomized surrogate of THIS speaker's clip: identical magnitude spectrum, random
+    phase, so it destroys temporal/phonetic structure while matching the long-term
+    spectral envelope (E11). Run through the same feature extractor as x so baseline and
+    input share the extractor's per-clip normalization."""
+    if kind == 'silence':
+        return torch.zeros_like(iv)
+    rng = np.random.default_rng(seed)
+    Y = np.fft.rfft(y_audio)
+    phase = np.exp(1j * rng.uniform(0, 2 * np.pi, len(Y)))
+    phase[0] = 1.0                                          # DC must stay real
+    if len(y_audio) % 2 == 0:
+        phase[-1] = 1.0                                    # Nyquist bin too (even N)
+    noise = np.fft.irfft(np.abs(Y) * phase, n=len(y_audio)).astype(np.float32)
+    return feat(noise, sampling_rate=TARGET_SR, return_tensors='pt').input_values
+
+
+def integrated_gradients(input_values, base, model, layer, w_torch, steps):
+    """IG w.r.t. the model input for each head, along the base -> input_values path.
     One forward + 2 backward/step, plus 2 extra forwards for the completeness targets.
 
-    Returns (ig, comp, path):
+    Returns (ig, comp, path, alphas):
       ig[head]   : (n_samples,) per-sample attribution
       comp[head] : (f_x, f_base) -- completeness holds iff sum(ig) == f_x - f_base.
-                   The midpoint rule over `steps` linear points is only an approximation
-                   of the path integral, so this is the convergence diagnostic: a large
-                   relative error means the integral is under-resolved -> raise IG_STEPS.
-      path[head] : [g(alpha) for alpha in path_alphas(steps)], where g(alpha) = f(alpha*x).
-                   The scalar being differentiated, recorded rather than discarded (free --
-                   it is already computed). Its SHAPE is the finer diagnostic: g near-linear
-                   in alpha => the gradient barely moves => `steps` is plenty; g sharply
-                   curved near alpha=0 => the action is at the quiet end, which linear
-                   spacing samples once (alpha=0.025 is -32 dB), and `steps` must go up."""
-    base = torch.zeros_like(input_values)
+                   The quadrature over `steps` points is only an approximation of the
+                   path integral, so this is the convergence diagnostic: a large relative
+                   error means the integral is under-resolved -> raise IG_STEPS / IG_ALPHA_POWER.
+      path[head] : [g(alpha) for alpha in alphas], g(alpha) = f(base + alpha*(x-base)).
+                   Recorded rather than discarded (free -- already computed); its SHAPE is
+                   the finer diagnostic (g near-linear => grid is plenty; sharply curved
+                   near alpha=0 => onset spike, needs a denser grid there -- which 'power' gives).
+      alphas     : the sample points actually used (non-uniform under 'power')."""
+    alphas, weights = path_quadrature(steps)
     grads = {k: torch.zeros_like(input_values) for k in w_torch}
     path = {k: [] for k in w_torch}
-    for a in path_alphas(steps):
-        xa = (base + float(a) * (input_values - base)).detach().requires_grad_(True)
+    delta = input_values - base
+    for a, wq in zip(alphas, weights):
+        xa = (base + float(a) * delta).detach().requires_grad_(True)
         out = model(input_values=xa, output_hidden_states=True)
         pooled = out.hidden_states[layer][0].mean(dim=0)                 # (768,) mean over frames
         for ki, (k, w) in enumerate(w_torch.items()):
             target = (w * pooled).sum()
             path[k].append(float(target))                                # g(alpha)
             target.backward(retain_graph=(ki < len(w_torch) - 1))
-            grads[k] = grads[k] + xa.grad.detach()
+            grads[k] = grads[k] + float(wq) * xa.grad.detach()           # quadrature-weighted
             xa.grad = None
-    ig = {k: ((input_values - base) * (g / steps))[0].numpy() for k, g in grads.items()}
-    # completeness targets: the path endpoints themselves (alphas are midpoints, so
+    ig = {k: (delta * g)[0].numpy() for k, g in grads.items()}
+    # completeness targets: the path endpoints themselves (alphas are interior points, so
     # neither alpha=0 nor alpha=1 was visited above -> both need their own forward pass)
     f_x = head_score(input_values, model, layer, w_torch)
     f_base = head_score(base, model, layer, w_torch)
     comp = {k: (f_x[k], f_base[k]) for k in w_torch}
-    return ig, comp, path
+    return ig, comp, path, alphas
 
 
 def sample_times(n_samples):
@@ -216,8 +264,9 @@ def map_phone(times, intervals):
 def main():
     ensure_dirs(TABLES, PRED_DIR)
     layer = best_layer()
+    sched = f'{IG_ALPHA}' + (f'(p={IG_ALPHA_POWER:g})' if IG_ALPHA == 'power' else '')
     print(f'10d_wavlm_ig.py  (integrated gradients | L{layer} | {IG_SECONDS}s window | '
-          f'{IG_STEPS} steps | heads ridge,enet)')
+          f'{IG_STEPS} steps | alpha={sched} | baseline={IG_BASELINE} | heads ridge,enet)')
 
     d = np.load(EMB_NPZ, allow_pickle=True)
     E, ids = d['embeddings'], list(d['file_ids'])
@@ -245,7 +294,8 @@ def main():
         y_audio = librosa.load(WAV_DIR / f'{fid}.wav', sr=TARGET_SR, mono=True)[0]
         y_audio = y_audio[:int(IG_SECONDS * TARGET_SR)].astype(np.float32)
         iv = feat(y_audio, sampling_rate=TARGET_SR, return_tensors='pt').input_values
-        ig, comp, path = integrated_gradients(iv, model, layer, w_torch, IG_STEPS)
+        base_iv = make_baseline(IG_BASELINE, y_audio, iv, feat, seed=IG_SEED + i)
+        ig, comp, path, alphas = integrated_gradients(iv, base_iv, model, layer, w_torch, IG_STEPS)
 
         times = sample_times(ig['ridge'].shape[0])
         intervals = parse_phones(TG_DIR / fid / f'{fid}.TextGrid')
@@ -260,13 +310,18 @@ def main():
             rec[f'{k}_s_mean'] = a[is_s].mean() if is_s.any() else np.nan
             rec[f'{k}_nons_mean'] = a[speech & ~is_s].mean()
             rec[f'{k}_contrast'] = rec[f'{k}_s_mean'] - rec[f'{k}_nons_mean']
-            # completeness: sum of attributions must equal the endpoint score gap
+            # completeness: sum of attributions must equal the endpoint score gap.
+            # Report the ABSOLUTE error too -- the raw per-speaker relative error is
+            # ill-defined when a speaker's clip score ~= its baseline score (delta_f ~= 0,
+            # a substantive "voice indistinguishable from its spectral surrogate" case, not
+            # an integration failure). A scale-floored relative error (E12) is added post-loop.
             f_x, f_b = comp[k]
             rec[f'{k}_ig_sum'] = a.sum()
             rec[f'{k}_delta_f'] = f_x - f_b
+            rec[f'{k}_comp_abserr'] = abs(a.sum() - (f_x - f_b))
             rec[f'{k}_comp_relerr'] = abs(a.sum() - (f_x - f_b)) / (abs(f_x - f_b) + 1e-12)
-            # g(alpha) curve, endpoints included (alpha=0 silence .. alpha=1 full clip)
-            al = np.concatenate(([0.0], path_alphas(IG_STEPS), [1.0]))
+            # g(alpha) curve, endpoints included (alpha=0 baseline .. alpha=1 full clip)
+            al = np.concatenate(([0.0], alphas, [1.0]))
             gv = np.array([f_b] + path[k] + [f_x], dtype=float)
             for aa, g_a in zip(al, gv):
                 path_rows.append({'file_id': fid, 'head': k, 'alpha': aa, 'g_alpha': g_a})
@@ -296,30 +351,59 @@ def main():
     ae = np.concatenate(agree['enet'])
     r_agree = pearsonr(ar, ae).statistic
 
+    # scale-floored completeness (E12): normalise the absolute error by each speaker's own
+    # |delta_f|, but floor the denominator at the head's median |delta_f| so a speaker whose
+    # clip score ~= its baseline score (delta_f ~= 0) is judged on absolute closeness to the
+    # typical signal rather than blowing up a near-zero denominator. Equals the raw relative
+    # error for on-scale speakers; caps the pathology for small-signal ones.
+    comp_rows = []
+    for k in ('ridge', 'enet'):
+        scale = fr[f'{k}_delta_f'].abs().median()
+        denom = fr[f'{k}_delta_f'].abs().clip(lower=scale)
+        fr[f'{k}_comp_relerr_robust'] = fr[f'{k}_comp_abserr'] / denom
+        for _, r in fr.iterrows():
+            comp_rows.append({'file_id': r['file_id'], 'head': k, 'ig_sum': r[f'{k}_ig_sum'],
+                              'delta_f': r[f'{k}_delta_f'], 'comp_abserr': r[f'{k}_comp_abserr'],
+                              'comp_relerr_raw': r[f'{k}_comp_relerr'],
+                              'comp_relerr_robust': r[f'{k}_comp_relerr_robust'],
+                              'small_signal': bool(abs(r[f'{k}_delta_f']) < 0.1 * scale)})
+
     summ = []
     for k in ('ridge', 'enet'):
         c = fr[f'{k}_contrast'].dropna()
         stat, p = wilcoxon(c, alternative='greater') if len(c) > 1 and c.std() > 0 else (np.nan, np.nan)
-        ce = fr[f'{k}_comp_relerr'].dropna()
-        ok = bool(len(ce) and ce.max() <= COMP_TOL)
-        verdict = 'OK' if ok else f'UNDER-RESOLVED -> raise IG_STEPS (now {IG_STEPS})'
+        cr = fr[f'{k}_comp_relerr_robust'].dropna()          # verdict metric (scale-floored)
+        ce = fr[f'{k}_comp_relerr'].dropna()                 # raw, for reference
+        scale = fr[f'{k}_delta_f'].abs().median()
+        n_small = int((fr[f'{k}_delta_f'].abs() < scale * 0.1).sum())
+        ok = bool(len(cr) and cr.max() <= COMP_TOL)
+        verdict = 'OK' if ok else (f'UNDER-RESOLVED -> raise IG_STEPS / IG_ALPHA_POWER '
+                                   f'(now {IG_STEPS} steps, alpha={sched})')
         summ.append({'head': k, 'layer': layer, 'window_s': IG_SECONDS, 'ig_steps': IG_STEPS,
+                     'baseline': IG_BASELINE, 'alpha_schedule': IG_ALPHA,
+                     'alpha_power': IG_ALPHA_POWER if IG_ALPHA == 'power' else np.nan,
                      'n_speakers': len(c), 's_contrast_mean': c.mean(),
                      's_contrast_median': c.median(), 'frac_speakers_positive': (c > 0).mean(),
                      'wilcoxon_p_greater': p, 'ridge_enet_frame_r': r_agree,
-                     'completeness_relerr_mean': ce.mean(), 'completeness_relerr_max': ce.max(),
-                     'completeness_ok': ok,
+                     'completeness_relerr_robust_mean': cr.mean(),
+                     'completeness_relerr_robust_max': cr.max(),
+                     'completeness_relerr_raw_max': ce.max(),
+                     'completeness_abserr_max': fr[f'{k}_comp_abserr'].max(),
+                     'n_small_signal': n_small, 'completeness_ok': ok,
                      'path_frac_first_half': fr[f'{k}_path_frac_first_half'].mean()})
         print(f"\n[{k}] /s/ IG contrast: mean={c.mean():+.2e} median={c.median():+.2e}  "
               f"{100*(c>0).mean():.0f}% speakers positive  Wilcoxon p(>0)={p:.4f}")
-        print(f"[{k}] completeness |sum(IG)-df|/|df|: mean={ce.mean():.2%} max={ce.max():.2%}"
-              f"  (tol {COMP_TOL:.0%})  -> {verdict}")
+        print(f"[{k}] completeness (scale-floored |sum(IG)-df|): mean={cr.mean():.2%} "
+              f"max={cr.max():.2%}  (tol {COMP_TOL:.0%})  -> {verdict}")
+        print(f"[{k}]   raw per-speaker relerr max={ce.max():.2%} "
+              f"({n_small} small-signal speaker(s) with |df|<10% of median -> raw relerr not meaningful)")
         print(f"[{k}] path shape: {fr[f'{k}_path_frac_first_half'].mean():.1%} of the score "
               f"gap accrues by alpha=0.5  (0.5 = g linear in alpha; far from it = curved)")
     print(f"\n[agreement] ridge vs enet IG (time space): Pearson r={r_agree:+.3f} "
           f"(over {len(ar)} speech frames)  [10c weight-space r was 0.45]")
 
     pd.DataFrame(summ).to_csv(TABLES / 'wavlm_ig_summary.csv', index=False)
+    pd.DataFrame(comp_rows).to_csv(TABLES / 'wavlm_ig_completeness.csv', index=False)
     prof = pd.DataFrame([{'phone_class': kl, 'head': k, 'mean_ig': np.mean(v),
                           'sd': np.std(v, ddof=1) if len(v) > 1 else np.nan, 'n_speakers': len(v)}
                          for (kl, k), v in sorted(phone_accum.items())])
@@ -328,7 +412,7 @@ def main():
 
     fig_phones(prof, summ, fr, r_agree, PRED_DIR / 'wavlm_ig_phones.png')
     fig_examples(ex_cache, examples, layer, PRED_DIR / 'wavlm_ig_examples.png')
-    print('\n  -> tables/wavlm_ig_summary.csv, wavlm_ig_phones.csv')
+    print('\n  -> tables/wavlm_ig_summary.csv, wavlm_ig_phones.csv, wavlm_ig_completeness.csv')
     print('  -> figures/prediction/wavlm_ig_phones.png, wavlm_ig_examples.png')
     print('done.')
 
